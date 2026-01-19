@@ -28,7 +28,7 @@ class Ticket(Base):
     sla_due_at = Column(DateTime, index=True)
     resolved_at = Column(DateTime)
     closed_at = Column(DateTime)
-    meta_data = Column(JSON, default={})
+    meta_data = Column("metadata", JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

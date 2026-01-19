@@ -56,7 +56,7 @@ class Project(Base):
     budget = Column(Numeric(12, 2))
     actual_cost = Column(Numeric(12, 2), default=0)
     project_manager_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True)
-    meta_data = Column(JSON, default={})
+    meta_data = Column("metadata", JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime)

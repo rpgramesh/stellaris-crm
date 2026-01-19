@@ -26,7 +26,7 @@ class Task(Base):
     actual_hours = Column(Numeric(5, 2), default=0)
     due_date = Column(Date, index=True)
     completed_at = Column(DateTime)
-    meta_data = Column(JSON, default={})
+    meta_data = Column("metadata", JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime)
