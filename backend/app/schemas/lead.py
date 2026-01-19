@@ -24,7 +24,8 @@ class LeadBase(BaseModel):
 
 class LeadCreate(LeadBase):
     """Schema for creating a new lead."""
-    pass
+    status: Optional[str] = "new"
+    stage: Optional[str] = "prospect"
 
 
 class LeadUpdate(BaseModel):

@@ -13,10 +13,12 @@ import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
+import { AddLeadDialog } from "./add-lead-dialog"
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [isAddLeadOpen, setIsAddLeadOpen] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -46,7 +48,7 @@ export default function LeadsPage() {
 
   const fetchLeads = async () => {
     try {
-      const data = await apiClient.getLeads()
+      const data: any = await apiClient.getLeads()
       setLeads(data.items || data || [])
     } catch (error) {
       console.error("[v0] Failed to fetch leads:", error)
@@ -177,10 +179,10 @@ export default function LeadsPage() {
                   <TableBody>
                     {leads.map((lead) => (
                       <TableRow key={lead.id}>
-                        <TableCell className="font-medium">{lead.company_name}</TableCell>
+                        <TableCell className="font-medium">{lead.company}</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <span className="text-sm">{lead.contact_name}</span>
+                            <span className="text-sm">{lead.first_name} {lead.last_name}</span>
                             <span className="text-xs text-muted-foreground">{lead.email}</span>
                           </div>
                         </TableCell>
@@ -222,6 +224,11 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       </div>
+      <AddLeadDialog 
+        open={isAddLeadOpen} 
+        onOpenChange={setIsAddLeadOpen} 
+        onSuccess={fetchLeads}
+      />
     </DashboardLayout>
   )
 }

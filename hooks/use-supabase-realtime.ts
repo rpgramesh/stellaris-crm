@@ -44,7 +44,13 @@ export function useSupabaseRealtime<T>({
   }, [onInsert, onUpdate, onDelete])
 
   useEffect(() => {
-    const channel = supabase
+    if (!supabase) {
+      return
+    }
+
+    const client = supabase
+
+    const channel = client
       .channel(`realtime:${schema}.${table}`)
       .on(
         "postgres_changes",
@@ -69,9 +75,7 @@ export function useSupabaseRealtime<T>({
       .subscribe()
 
     return () => {
-      supabase.removeChannel(channel)
+      client.removeChannel(channel)
     }
   }, [table, schema, filter, events])
 }
-
-

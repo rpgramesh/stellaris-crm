@@ -24,7 +24,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   isLoading: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, remember?: boolean) => Promise<void>
   register: (email: string, password: string, fullName: string) => Promise<void>
   logout: () => void
 }
@@ -36,13 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token")
+    const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token")
     if (token) {
       apiClient
         .getCurrentUser()
         .then((userData) => setUser(userData))
         .catch(() => {
           localStorage.removeItem("access_token")
+          sessionStorage.removeItem("access_token")
         })
         .finally(() => setIsLoading(false))
     } else {
@@ -50,8 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = async (email: string, password: string) => {
-    await apiClient.login(email, password)
+  const login = async (email: string, password: string, remember: boolean = true) => {
+    await apiClient.login(email, password, remember)
     const userData = await apiClient.getCurrentUser()
     setUser(userData)
   }

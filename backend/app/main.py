@@ -43,14 +43,31 @@ app.include_router(tickets_router, prefix=settings.API_V1_PREFIX)
 app.include_router(invoices_router, prefix=settings.API_V1_PREFIX)
 app.include_router(reports_router, prefix=settings.API_V1_PREFIX)
 
+from app.core.database import check_db_connection
+from fastapi import FastAPI, status, Response
+
+# ... imports ...
+
 # Health check endpoint
 @app.get("/health")
-async def health_check():
+async def health_check(response: Response):
     """Health check endpoint for monitoring."""
+    is_db_connected = check_db_connection()
+    
+    if not is_db_connected:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {
+            "status": "unhealthy",
+            "app": settings.APP_NAME,
+            "version": "1.0.0",
+            "database": "disconnected"
+        }
+        
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "database": "connected"
     }
 
 

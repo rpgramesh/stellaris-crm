@@ -30,7 +30,7 @@ class Lead(Base):
     assigned_to = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True)
     converted_to_client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"))
     notes = Column(Text)
-    meta_data = Column(JSON, default={})
+    meta_data = Column("metadata", JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime)

@@ -1,15 +1,7 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import {
-  ArrowRight,
-  BarChart3,
-  Users,
-  Briefcase,
-  CheckSquare,
-  HeadphonesIcon,
-  FileText,
-  TrendingUp,
-} from "lucide-react"
+import { ArrowRight, Users, Briefcase, CheckSquare, HeadphonesIcon, FileText, TrendingUp, Linkedin } from "lucide-react"
 
 export default function HomePage() {
   return (
@@ -19,10 +11,16 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <BarChart3 className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-semibold text-foreground">CRM Portal</span>
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/stellaris-logo.png"
+                  alt="Stellaris IT Consulting & Resourcing"
+                  width={220}
+                  height={50}
+                  className="h-10 w-auto"
+                  priority
+                />
+              </Link>
             </div>
             <nav className="hidden md:flex items-center gap-6">
               <Link href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -187,16 +185,86 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border bg-card/30 py-12">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <BarChart3 className="h-5 w-5 text-primary-foreground" />
+      <footer className="mt-16 bg-primary text-primary-foreground">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-4">
+              <Link href="/" className="inline-flex items-center">
+                <Image
+                  src="/stellaris-logo.png"
+                  alt="Stellaris IT Consulting & Resourcing"
+                  width={220}
+                  height={50}
+                  className="h-10 w-auto"
+                />
+              </Link>
+              <p className="text-sm leading-relaxed max-w-sm text-primary-foreground/90">
+                We are an Australia based IT professional services company, providing end-to-end recruitment solutions
+                and IT consultancy to help deliver successful outcomes.
+              </p>
+              <div className="space-y-1 text-sm">
+                <p className="font-semibold">1300 922 358</p>
+                <p>contact@stellarisconsulting.com.au</p>
               </div>
-              <span className="text-lg font-semibold">CRM Portal</span>
             </div>
-            <p className="text-sm text-muted-foreground">© 2026 CRM Portal. All rights reserved.</p>
+
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold tracking-wide">Our Services</h3>
+              <ul className="space-y-2 text-sm">
+                <li>Consulting Services</li>
+                <li>IT Professional Services</li>
+                <li>Hiring Solutions</li>
+                <li>Support</li>
+              </ul>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold tracking-wide">Follow Us</h3>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="https://www.linkedin.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-primary-foreground/40 bg-primary/20 hover:bg-primary-foreground/10 transition-colors"
+                  aria-label="Follow Stellaris on LinkedIn"
+                >
+                  <Linkedin className="h-5 w-5" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold tracking-wide">Business hours</h3>
+              <p className="text-sm leading-relaxed text-primary-foreground/90">
+                We operate normal hours as per the geographic location of client sites, however we endeavour to support
+                you 24/7.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-primary-foreground/20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-3">
+            <p className="text-xs md:text-sm text-primary-foreground/80 text-center md:text-left">
+              © 2026 Stellaris Consulting Australia Pty Ltd. All rights reserved.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs md:text-sm text-primary-foreground/80">
+              <Link href="#" className="hover:underline">
+                Privacy Policy
+              </Link>
+              <span className="hidden md:inline">•</span>
+              <Link href="#" className="hover:underline">
+                Terms of Use
+              </Link>
+              <span className="hidden md:inline">•</span>
+              <Link href="#" className="hover:underline">
+                WHS
+              </Link>
+              <span className="hidden md:inline">•</span>
+              <Link href="#" className="hover:underline">
+                Disclaimer
+              </Link>
+            </div>
           </div>
         </div>
       </footer>

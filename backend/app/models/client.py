@@ -31,7 +31,7 @@ class Client(Base):
     payment_terms = Column(String(50))  # net_30, net_60, etc.
     credit_limit = Column(Numeric(12, 2))
     tax_id = Column(String(100))
-    meta_data = Column(JSON, default={})
+    meta_data = Column("metadata", JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = Column(DateTime)

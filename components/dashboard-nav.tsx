@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -24,10 +25,15 @@ export function DashboardNav() {
   return (
     <div className="flex h-screen w-64 flex-col border-r border-border bg-card">
       <div className="flex h-16 items-center gap-2 border-b border-border px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <BarChart3 className="h-5 w-5 text-primary-foreground" />
-        </div>
-        <span className="text-lg font-semibold">CRM Portal</span>
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/stellaris-logo.png"
+            alt="Stellaris IT Consulting & Resourcing"
+            width={180}
+            height={40}
+            className="h-8 w-auto"
+          />
+        </Link>
       </div>
 
       <nav className="flex-1 space-y-1 p-4">

@@ -5,14 +5,20 @@ export class ApiClient {
 
   constructor() {
     if (typeof window !== "undefined") {
-      this.token = localStorage.getItem("access_token")
+      this.token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token")
     }
   }
 
-  setToken(token: string) {
+  setToken(token: string, remember: boolean = true) {
     this.token = token
     if (typeof window !== "undefined") {
-      localStorage.setItem("access_token", token)
+      if (remember) {
+        localStorage.setItem("access_token", token)
+        sessionStorage.removeItem("access_token")
+      } else {
+        sessionStorage.setItem("access_token", token)
+        localStorage.removeItem("access_token")
+      }
     }
   }
 
@@ -20,6 +26,7 @@ export class ApiClient {
     this.token = null
     if (typeof window !== "undefined") {
       localStorage.removeItem("access_token")
+      sessionStorage.removeItem("access_token")
     }
   }
 
@@ -30,7 +37,7 @@ export class ApiClient {
     }
 
     if (this.token) {
-      headers["Authorization"] = `Bearer ${this.token}`
+      ;(headers as Record<string, string>)["Authorization"] = `Bearer ${this.token}`
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -46,7 +53,7 @@ export class ApiClient {
     return response.json()
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, remember: boolean = true) {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: {
@@ -56,11 +63,12 @@ export class ApiClient {
     })
 
     if (!response.ok) {
-      throw new Error("Invalid credentials")
+      const error = await response.json().catch(() => ({ detail: "Invalid credentials" }))
+      throw new Error(error.detail)
     }
 
     const data = await response.json()
-    this.setToken(data.access_token)
+    this.setToken(data.access_token, remember)
     return data
   }
 
@@ -71,8 +79,29 @@ export class ApiClient {
     })
   }
 
+  
+
   async getCurrentUser() {
     return this.request("/auth/me", { method: "GET" })
+  }
+
+  async checkHealth(): Promise<{ ok: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL.replace("/api/v1", "")}/health`, {
+        method: "GET",
+      })
+      if (!response.ok) {
+        return { ok: false, error: `Server returned ${response.status}: ${response.statusText}` }
+      }
+      const data = await response.json()
+      if (data.status === "healthy" && data.database === "connected") {
+        return { ok: true }
+      }
+      return { ok: false, error: "Database disconnected" }
+    } catch (error) {
+      console.error("Health check failed:", error)
+      return { ok: false, error: error instanceof Error ? error.message : "Network error" }
+    }
   }
 
   // Dashboard
