@@ -420,3 +420,4 @@ MIT License - free to use for commercial and personal projects.
 - Documentation: [/docs](docs/)
 - API Docs: http://localhost:8000/docs
 - Issues: GitHub Issues
+# stellaris-crm
