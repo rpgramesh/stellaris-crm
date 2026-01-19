@@ -1,0 +1,196 @@
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
+
+export class ApiClient {
+  private token: string | null = null
+
+  constructor() {
+    if (typeof window !== "undefined") {
+      this.token = localStorage.getItem("access_token")
+    }
+  }
+
+  setToken(token: string) {
+    this.token = token
+    if (typeof window !== "undefined") {
+      localStorage.setItem("access_token", token)
+    }
+  }
+
+  clearToken() {
+    this.token = null
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token")
+    }
+  }
+
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...options.headers,
+    }
+
+    if (this.token) {
+      headers["Authorization"] = `Bearer ${this.token}`
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: "An error occurred" }))
+      throw new Error(error.detail || `HTTP ${response.status}`)
+    }
+
+    return response.json()
+  }
+
+  async login(email: string, password: string) {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    })
+
+    if (!response.ok) {
+      throw new Error("Invalid credentials")
+    }
+
+    const data = await response.json()
+    this.setToken(data.access_token)
+    return data
+  }
+
+  async register(email: string, password: string, full_name: string) {
+    return this.request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, full_name }),
+    })
+  }
+
+  async getCurrentUser() {
+    return this.request("/auth/me", { method: "GET" })
+  }
+
+  // Dashboard
+  async getDashboardStats() {
+    return this.request("/reports/dashboard", { method: "GET" })
+  }
+
+  // Leads
+  async getLeads(params?: Record<string, any>) {
+    const query = new URLSearchParams(params).toString()
+    return this.request(`/leads${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async createLead(data: any) {
+    return this.request("/leads", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async updateLead(id: number, data: any) {
+    return this.request(`/leads/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  }
+
+  async deleteLead(id: number) {
+    return this.request(`/leads/${id}`, { method: "DELETE" })
+  }
+
+  async convertLead(id: number) {
+    return this.request(`/leads/${id}/convert`, { method: "POST" })
+  }
+
+  // Clients
+  async getClients(params?: Record<string, any>) {
+    const query = new URLSearchParams(params).toString()
+    return this.request(`/clients${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async createClient(data: any) {
+    return this.request("/clients", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async updateClient(id: number, data: any) {
+    return this.request(`/clients/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  }
+
+  async deleteClient(id: number) {
+    return this.request(`/clients/${id}`, { method: "DELETE" })
+  }
+
+  // Projects
+  async getProjects(params?: Record<string, any>) {
+    const query = new URLSearchParams(params).toString()
+    return this.request(`/projects${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async createProject(data: any) {
+    return this.request("/projects", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async updateProject(id: number, data: any) {
+    return this.request(`/projects/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  }
+
+  async deleteProject(id: number) {
+    return this.request(`/projects/${id}`, { method: "DELETE" })
+  }
+
+  // Tasks
+  async getTasks(params?: Record<string, any>) {
+    const query = new URLSearchParams(params).toString()
+    return this.request(`/tasks${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async createTask(data: any) {
+    return this.request("/tasks", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async updateTask(id: number, data: any) {
+    return this.request(`/tasks/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  }
+
+  async deleteTask(id: number) {
+    return this.request(`/tasks/${id}`, { method: "DELETE" })
+  }
+
+  // Tickets
+  async getTickets(params?: Record<string, any>) {
+    const query = new URLSearchParams(params).toString()
+    return this.request(`/tickets${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async createTicket(data: any) {
+    return this.request("/tickets", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async updateTicket(id: number, data: any) {
+    return this.request(`/tickets/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  }
+
+  async deleteTicket(id: number) {
+    return this.request(`/tickets/${id}`, { method: "DELETE" })
+  }
+
+  // Invoices
+  async getInvoices(params?: Record<string, any>) {
+    const query = new URLSearchParams(params).toString()
+    return this.request(`/invoices${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async createInvoice(data: any) {
+    return this.request("/invoices", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async updateInvoice(id: number, data: any) {
+    return this.request(`/invoices/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  }
+
+  async deleteInvoice(id: number) {
+    return this.request(`/invoices/${id}`, { method: "DELETE" })
+  }
+}
+
+export const apiClient = new ApiClient()
