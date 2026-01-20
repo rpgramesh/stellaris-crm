@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,50 +9,50 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Filter, Download } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { AddInvoiceDialog } from "./components/add-invoice-dialog"
+import { ViewInvoiceDialog } from "./components/view-invoice-dialog"
+import { apiClient } from "@/lib/api-client"
+import { toast } from "sonner"
 
 export default function InvoicesPage() {
-  const [invoices, setInvoices] = useState([
-    {
-      id: "INV-001",
-      client: "Acme Corporation",
-      amount: "$45,000",
-      status: "Paid",
-      dueDate: "2026-01-15",
-      paidDate: "2026-01-10",
-    },
-    {
-      id: "INV-002",
-      client: "TechStart Inc",
-      amount: "$32,000",
-      status: "Pending",
-      dueDate: "2026-01-20",
-      paidDate: null,
-    },
-    {
-      id: "INV-003",
-      client: "Global Solutions",
-      amount: "$78,000",
-      status: "Overdue",
-      dueDate: "2026-01-10",
-      paidDate: null,
-    },
-    {
-      id: "INV-004",
-      client: "Enterprise Systems",
-      amount: "$25,000",
-      status: "Paid",
-      dueDate: "2026-01-12",
-      paidDate: "2026-01-11",
-    },
-    {
-      id: "INV-005",
-      client: "Innovation Labs",
-      amount: "$18,500",
-      status: "Draft",
-      dueDate: "2026-01-25",
-      paidDate: null,
-    },
-  ])
+  const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false)
+  const [isViewInvoiceOpen, setIsViewInvoiceOpen] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [clients, setClients] = useState<Record<string, string>>({})
+  const [stats, setStats] = useState<any>(null)
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      const [invoicesRes, clientsRes, statsRes] = await Promise.all([
+        apiClient.getInvoices(),
+        apiClient.getClients(),
+        apiClient.getDashboardStats()
+      ])
+
+      const invoiceList = Array.isArray(invoicesRes) ? invoicesRes : (invoicesRes.items || [])
+      setInvoices(invoiceList)
+
+      const clientMap: Record<string, string> = {}
+      const clientList = Array.isArray(clientsRes) ? clientsRes : (clientsRes.items || [])
+      clientList.forEach((c: any) => clientMap[c.id] = c.company_name)
+      setClients(clientMap)
+
+      setStats(statsRes)
+
+    } catch (error) {
+      console.error("Failed to load invoice data:", error)
+      toast.error("Failed to load invoice data")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useSupabaseRealtime<any>({
     table: "invoices",
@@ -64,12 +64,37 @@ export default function InvoicesPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      Paid: "bg-success/10 text-success",
-      Pending: "bg-warning/10 text-warning",
-      Overdue: "bg-destructive/10 text-destructive",
-      Draft: "bg-secondary text-secondary-foreground",
+      paid: "bg-success/10 text-success",
+      pending: "bg-warning/10 text-warning",
+      overdue: "bg-destructive/10 text-destructive",
+      draft: "bg-secondary text-secondary-foreground",
+      sent: "bg-primary/10 text-primary"
     }
-    return colors[status] || "bg-secondary"
+    return colors[status?.toLowerCase()] || "bg-secondary"
+  }
+
+  const handleExport = () => {
+    // Simple CSV Export
+    const headers = ["Invoice Number", "Client", "Amount", "Status", "Issue Date", "Due Date"]
+    const rows = invoices.map(inv => [
+        inv.invoice_number,
+        clients[inv.client_id] || "Unknown",
+        inv.total_amount,
+        inv.status,
+        inv.issue_date,
+        inv.due_date
+    ])
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
+    
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", "invoices.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   return (
@@ -80,7 +105,7 @@ export default function InvoicesPage() {
             <h1 className="text-3xl font-bold">Invoices</h1>
             <p className="text-muted-foreground mt-1">Manage billing and track payments</p>
           </div>
-          <Button>
+          <Button onClick={() => setIsAddInvoiceOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Create Invoice
           </Button>
@@ -89,29 +114,32 @@ export default function InvoicesPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Invoiced</CardDescription>
-              <CardTitle className="text-3xl">$198,500</CardTitle>
+              <CardDescription>Revenue This Month</CardDescription>
+              <CardTitle className="text-3xl">${stats?.financial?.revenue_this_month?.toLocaleString() || "0"}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">+12.5% from last month</p>
+              <p className="text-xs text-muted-foreground">
+                  {stats?.financial?.revenue_growth_percent > 0 ? "+" : ""}
+                  {stats?.financial?.revenue_growth_percent || 0}% from last month
+              </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Paid</CardDescription>
-              <CardTitle className="text-3xl text-success">$70,000</CardTitle>
+              <CardDescription>Outstanding Amount</CardDescription>
+              <CardTitle className="text-3xl text-warning">${stats?.financial?.outstanding_amount?.toLocaleString() || "0"}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">2 invoices paid</p>
+              <p className="text-xs text-muted-foreground">Pending payments</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Outstanding</CardDescription>
-              <CardTitle className="text-3xl text-warning">$128,500</CardTitle>
+              <CardDescription>Overdue Invoices</CardDescription>
+              <CardTitle className="text-3xl text-destructive">{stats?.financial?.overdue_invoices || 0}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground">3 pending payments</p>
+              <p className="text-xs text-muted-foreground">Action required</p>
             </CardContent>
           </Card>
         </div>
@@ -131,10 +159,19 @@ export default function InvoicesPage() {
                 <Button variant="outline" size="icon">
                   <Filter className="h-4 w-4" />
                 </Button>
+                <Button variant="outline" size="icon" onClick={handleExport} title="Export to CSV">
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" onClick={() => toast.info("Syncing with Accounting System...")} title="Sync with Accounting System">
+                   Sync
+                </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
+             {loading ? (
+                 <div className="text-center py-4">Loading invoices...</div>
+             ) : (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -144,28 +181,39 @@ export default function InvoicesPage() {
                     <TableHead>Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Due Date</TableHead>
-                    <TableHead>Paid Date</TableHead>
+                    <TableHead>Paid</TableHead>
                     <TableHead className="w-[70px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-mono text-sm">{invoice.id}</TableCell>
-                      <TableCell className="font-medium">{invoice.client}</TableCell>
-                      <TableCell className="font-semibold">{invoice.amount}</TableCell>
+                  {invoices.length === 0 ? (
+                      <TableRow>
+                          <TableCell colSpan={7} className="text-center">No invoices found</TableCell>
+                      </TableRow>
+                  ) : invoices.map((invoice) => (
+                    <TableRow 
+                      key={invoice.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => {
+                        setSelectedInvoice(invoice)
+                        setIsViewInvoiceOpen(true)
+                      }}
+                    >
+                      <TableCell className="font-mono text-sm">{invoice.invoice_number}</TableCell>
+                      <TableCell className="font-medium">{clients[invoice.client_id] || "Unknown"}</TableCell>
+                      <TableCell className="font-semibold">${Number(invoice.total_amount).toLocaleString()}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={getStatusColor(invoice.status)}>
                           {invoice.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(invoice.dueDate).toLocaleDateString()}
+                        {new Date(invoice.due_date).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {invoice.paidDate ? new Date(invoice.paidDate).toLocaleDateString() : "-"}
+                        ${Number(invoice.amount_paid).toLocaleString()}
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon">
                           <Download className="h-4 w-4" />
                         </Button>
@@ -175,9 +223,33 @@ export default function InvoicesPage() {
                 </TableBody>
               </Table>
             </div>
+             )}
           </CardContent>
         </Card>
+
+        <AddInvoiceDialog 
+          open={isAddInvoiceOpen}
+          onOpenChange={setIsAddInvoiceOpen}
+          onSuccess={(newInvoice) => {
+             // Add to list with some defaults for missing fields in response
+             setInvoices(prev => [{
+                ...newInvoice,
+             }, ...prev])
+             loadData()
+          }}
+        />
+
+        <ViewInvoiceDialog
+          open={isViewInvoiceOpen}
+          onOpenChange={setIsViewInvoiceOpen}
+          invoice={selectedInvoice}
+          onDeleteSuccess={(id) => {
+             setInvoices(prev => prev.filter(inv => inv.id !== id))
+             setSelectedInvoice(null)
+          }}
+        />
       </div>
     </DashboardLayout>
   )
 }
+

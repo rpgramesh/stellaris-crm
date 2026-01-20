@@ -19,6 +19,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { AddClientDialog } from "./components/add-client-dialog"
+import { EditClientDialog } from "./components/edit-client-dialog"
+import { ViewClientDialog } from "./components/view-client-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { ToastAction } from "@/components/ui/toast"
 
 interface Client {
   id: string
@@ -31,14 +45,24 @@ interface Client {
   city?: string
   country?: string
   created_at: string
+  address?: string
+  website?: string
+  meta_data?: any
 }
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [isConnected, setIsConnected] = useState(true) // Assumed true as hook doesn't expose status
+  const [isConnected, setIsConnected] = useState(true)
   const { toast } = useToast()
+
+  // Dialog states
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isViewOpen, setIsViewOpen] = useState(false)
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
   // Initial fetch
   useEffect(() => {
@@ -99,10 +123,63 @@ export default function ClientsPage() {
     },
   })
 
+  const handleDeleteClick = (client: Client) => {
+    setSelectedClient(client)
+    setIsDeleteAlertOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!selectedClient) return
+
+    try {
+      await apiClient.deleteClient(selectedClient.id)
+      // Optimistic update
+      setClients(prev => prev.filter(c => c.id !== selectedClient.id))
+      
+      const clientToRestore = selectedClient // Capture for closure
+      
+      toast({
+        title: "Client deleted",
+        description: `${clientToRestore.company_name} has been moved to trash.`,
+        action: (
+          <ToastAction altText="Undo" onClick={() => handleUndoDelete(clientToRestore)}>
+            Undo
+          </ToastAction>
+        ),
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete client",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleteAlertOpen(false)
+      setSelectedClient(null)
+    }
+  }
+
+  const handleUndoDelete = async (client: Client) => {
+    try {
+      await apiClient.restoreClient(client.id)
+      fetchClients() 
+      toast({
+        title: "Restored",
+        description: "Client has been restored."
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to restore client",
+        variant: "destructive"
+      })
+    }
+  }
+
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "active":
-        return "default" // Primary color
+        return "default"
       case "inactive":
         return "secondary"
       case "churned":
@@ -113,6 +190,7 @@ export default function ClientsPage() {
   }
 
   const getInitials = (name: string) => {
+    if (!name) return "CL"
     return name
       .split(" ")
       .map((n) => n[0])
@@ -136,7 +214,7 @@ export default function ClientsPage() {
               {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               {isConnected ? "Live Updates" : "Disconnected"}
             </Badge>
-            <Button>
+            <Button onClick={() => setIsAddOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Add Client
             </Button>
@@ -202,10 +280,19 @@ export default function ClientsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem>View Details</DropdownMenuItem>
-                          <DropdownMenuItem>Edit Client</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedClient(client)
+                            setIsViewOpen(true)
+                          }}>View Details</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedClient(client)
+                            setIsEditOpen(true)
+                          }}>Edit Client</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={() => handleDeleteClick(client)}
+                          >
                             Delete Client
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -247,7 +334,14 @@ export default function ClientsPage() {
                       </div>
                     </CardContent>
                     <CardFooter className="bg-muted/50 p-3">
-                       <Button variant="ghost" className="w-full h-8 text-xs">
+                       <Button 
+                         variant="ghost" 
+                         className="w-full h-8 text-xs"
+                         onClick={() => {
+                           setSelectedClient(client)
+                           setIsViewOpen(true)
+                         }}
+                       >
                          View Details
                        </Button>
                        <Button variant="ghost" className="w-full h-8 text-xs border-l rounded-none">
@@ -260,6 +354,55 @@ export default function ClientsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Dialogs */}
+        <AddClientDialog 
+          open={isAddOpen} 
+          onOpenChange={setIsAddOpen}
+          onSuccess={(newClient) => {
+            // Realtime might handle this, but explicit add is safe
+            if (!clients.find(c => c.id === newClient.id)) {
+              setClients(prev => [newClient, ...prev])
+            }
+          }}
+        />
+
+        {selectedClient && (
+          <>
+            <EditClientDialog 
+              client={selectedClient}
+              open={isEditOpen}
+              onOpenChange={setIsEditOpen}
+              onSuccess={(updatedClient) => {
+                setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c))
+              }}
+            />
+            <ViewClientDialog 
+              client={selectedClient}
+              open={isViewOpen}
+              onOpenChange={setIsViewOpen}
+            />
+          </>
+        )}
+
+        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action will move the client to trash. You can undo this action immediately after.
+                Related projects will also be affected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </div>
     </DashboardLayout>
   )

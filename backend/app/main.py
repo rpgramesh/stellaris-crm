@@ -13,6 +13,7 @@ from app.api.routes import (
     tickets_router,
     invoices_router,
     reports_router,
+    users_router,
 )
 
 # Create FastAPI app
@@ -42,9 +43,14 @@ app.include_router(tasks_router, prefix=settings.API_V1_PREFIX)
 app.include_router(tickets_router, prefix=settings.API_V1_PREFIX)
 app.include_router(invoices_router, prefix=settings.API_V1_PREFIX)
 app.include_router(reports_router, prefix=settings.API_V1_PREFIX)
+app.include_router(users_router, prefix=settings.API_V1_PREFIX)
 
-from app.core.database import check_db_connection
+from app.core.database import check_db_connection, engine, Base
 from fastapi import FastAPI, status, Response
+
+@app.on_event("startup")
+async def startup_db():
+    Base.metadata.create_all(bind=engine)
 
 # ... imports ...
 
@@ -52,7 +58,7 @@ from fastapi import FastAPI, status, Response
 @app.get("/health")
 async def health_check(response: Response):
     """Health check endpoint for monitoring."""
-    is_db_connected = check_db_connection()
+    is_db_connected, error_msg = check_db_connection()
     
     if not is_db_connected:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
@@ -60,7 +66,8 @@ async def health_check(response: Response):
             "status": "unhealthy",
             "app": settings.APP_NAME,
             "version": "1.0.0",
-            "database": "disconnected"
+            "database": "disconnected",
+            "error": error_msg
         }
         
     return {

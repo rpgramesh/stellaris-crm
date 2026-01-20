@@ -141,6 +141,33 @@ async def update_client(
     
     # Update fields
     update_data = client_data.model_dump(exclude_unset=True)
+    
+    # Audit Logging
+    changes = {}
+    for field, value in update_data.items():
+        if field == "meta_data":
+            # Skip full metadata comparison for now, or implement deep diff
+            changes[field] = "Updated metadata"
+        elif getattr(client, field) != value:
+            changes[field] = f"{getattr(client, field)} -> {value}"
+    
+    if changes:
+        if not client.meta_data:
+            client.meta_data = {}
+        
+        # Create a copy to ensure SQLAlchemy detects change
+        new_meta = dict(client.meta_data)
+        if "audit_log" not in new_meta:
+            new_meta["audit_log"] = []
+        
+        new_meta["audit_log"].append({
+            "action": "update",
+            "timestamp": datetime.utcnow().isoformat(),
+            "user_id": str(current_user.id),
+            "changes": changes
+        })
+        client.meta_data = new_meta
+
     for field, value in update_data.items():
         setattr(client, field, value)
     
@@ -148,6 +175,65 @@ async def update_client(
     db.refresh(client)
     
     return ClientResponse.model_validate(client)
+
+
+@router.post("/{client_id}/restore", response_model=APIResponse)
+async def restore_client(
+    client_id: UUID,
+    current_user: User = Depends(RoleChecker(["admin", "manager"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Restore a soft-deleted client.
+    
+    Permissions: admin, manager
+    """
+    client = db.query(Client).filter(
+        Client.id == client_id,
+        Client.deleted_at.isnot(None)
+    ).first()
+    
+    if not client:
+        # Check if it exists but is not deleted
+        active_client = db.query(Client).filter(
+            Client.id == client_id,
+            Client.deleted_at.is_(None)
+        ).first()
+        if active_client:
+             return APIResponse(
+                success=True,
+                message="Client is already active"
+            )
+        
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found in trash"
+        )
+    
+    # Restore
+    client.deleted_at = None
+    
+    # Log restoration
+    if not client.meta_data:
+        client.meta_data = {}
+    
+    new_meta = dict(client.meta_data)
+    if "audit_log" not in new_meta:
+        new_meta["audit_log"] = []
+    
+    new_meta["audit_log"].append({
+        "action": "restore",
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": str(current_user.id)
+    })
+    client.meta_data = new_meta
+
+    db.commit()
+    
+    return APIResponse(
+        success=True,
+        message="Client restored successfully"
+    )
 
 
 @router.delete("/{client_id}", response_model=APIResponse)

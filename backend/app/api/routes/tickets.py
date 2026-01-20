@@ -54,7 +54,17 @@ async def create_ticket(
         **ticket_data.model_dump(),
         ticket_number=generate_ticket_number(),
         created_by=current_user.id,
-        sla_due_at=calculate_sla_due_date(ticket_data.priority or "medium")
+        sla_due_at=calculate_sla_due_date(ticket_data.priority or "medium"),
+        meta_data={
+            "audit_log": [
+                {
+                    "action": "created",
+                    "user_id": str(current_user.id),
+                    "user_name": current_user.full_name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ]
+        }
     )
     
     db.add(new_ticket)
@@ -159,6 +169,21 @@ async def update_ticket(
     for field, value in update_data.items():
         setattr(ticket, field, value)
     
+    # Audit logging
+    audit_entry = {
+        "action": "updated",
+        "user_id": str(current_user.id),
+        "user_name": current_user.full_name,
+        "timestamp": datetime.utcnow().isoformat(),
+        "changes": list(update_data.keys())
+    }
+    
+    current_meta = dict(ticket.meta_data or {})
+    audit_log = current_meta.get("audit_log", [])
+    audit_log.append(audit_entry)
+    current_meta["audit_log"] = audit_log
+    ticket.meta_data = current_meta
+
     db.commit()
     db.refresh(ticket)
     

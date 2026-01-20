@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,55 +9,56 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Filter } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { AddTicketDialog } from "./components/add-ticket-dialog"
+import { apiClient } from "@/lib/api-client"
+import { toast } from "sonner"
 
 export default function TicketsPage() {
-  const [tickets, setTickets] = useState([
-    {
-      id: "TKT-001",
-      subject: "Login page not loading",
-      client: "Acme Corp",
-      priority: "High",
-      status: "Open",
-      assignee: "John Doe",
-      created: "2026-01-15",
-    },
-    {
-      id: "TKT-002",
-      subject: "Feature request: Export to PDF",
-      client: "TechStart Inc",
-      priority: "Medium",
-      status: "In Progress",
-      assignee: "Sarah Smith",
-      created: "2026-01-14",
-    },
-    {
-      id: "TKT-003",
-      subject: "Performance issues on dashboard",
-      client: "Global Solutions",
-      priority: "High",
-      status: "In Progress",
-      assignee: "Mike Johnson",
-      created: "2026-01-14",
-    },
-    {
-      id: "TKT-004",
-      subject: "Question about billing",
-      client: "Innovation Labs",
-      priority: "Low",
-      status: "Open",
-      assignee: "Emily Davis",
-      created: "2026-01-13",
-    },
-    {
-      id: "TKT-005",
-      subject: "Bug: Data not syncing",
-      client: "Enterprise Systems",
-      priority: "High",
-      status: "Resolved",
-      assignee: "John Doe",
-      created: "2026-01-12",
-    },
-  ])
+  const [isAddTicketOpen, setIsAddTicketOpen] = useState(false)
+  const [tickets, setTickets] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<any>(null)
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [clients, setClients] = useState<Record<string, string>>({})
+  const [users, setUsers] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      const [ticketsRes, clientsRes, usersRes, statsRes, analyticsRes] = await Promise.all([
+        apiClient.getTickets(),
+        apiClient.getClients(),
+        apiClient.getUsers(),
+        apiClient.getDashboardStats(),
+        apiClient.getTicketAnalytics()
+      ])
+
+      const ticketList = Array.isArray(ticketsRes) ? ticketsRes : (ticketsRes.items || [])
+      setTickets(ticketList)
+
+      const clientMap: Record<string, string> = {}
+      const clientList = Array.isArray(clientsRes) ? clientsRes : (clientsRes.items || [])
+      clientList.forEach((c: any) => clientMap[c.id] = c.company_name)
+      setClients(clientMap)
+
+      const userMap: Record<string, string> = {}
+      const userList = Array.isArray(usersRes) ? usersRes : (usersRes.items || [])
+      userList.forEach((u: any) => userMap[u.id] = u.full_name)
+      setUsers(userMap)
+      
+      setStats(statsRes)
+      setAnalytics(analyticsRes)
+
+    } catch (error) {
+      console.error("Failed to load ticket data:", error)
+      toast.error("Failed to load ticket data")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useSupabaseRealtime<any>({
     table: "tickets",
@@ -69,21 +70,22 @@ export default function TicketsPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      Open: "bg-info/10 text-info",
-      "In Progress": "bg-primary/10 text-primary",
-      Resolved: "bg-success/10 text-success",
-      Closed: "bg-secondary text-secondary-foreground",
+      open: "bg-info/10 text-info",
+      in_progress: "bg-primary/10 text-primary",
+      resolved: "bg-success/10 text-success",
+      closed: "bg-secondary text-secondary-foreground",
     }
-    return colors[status] || "bg-secondary"
+    return colors[status?.toLowerCase()] || "bg-secondary"
   }
 
   const getPriorityColor = (priority: string) => {
     const colors: Record<string, string> = {
-      High: "bg-destructive/10 text-destructive",
-      Medium: "bg-warning/10 text-warning",
-      Low: "bg-success/10 text-success",
+      high: "bg-destructive/10 text-destructive",
+      medium: "bg-warning/10 text-warning",
+      low: "bg-success/10 text-success",
+      critical: "bg-destructive text-destructive-foreground"
     }
-    return colors[priority] || "bg-secondary"
+    return colors[priority?.toLowerCase()] || "bg-secondary"
   }
 
   return (
@@ -94,11 +96,94 @@ export default function TicketsPage() {
             <h1 className="text-3xl font-bold">Support Tickets</h1>
             <p className="text-muted-foreground mt-1">Manage customer support requests and issues</p>
           </div>
-          <Button>
+          <Button onClick={() => setIsAddTicketOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             New Ticket
           </Button>
         </div>
+
+        {/* Analytics Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.tickets?.open || 0}</div>
+              <p className="text-xs text-muted-foreground">Active issues</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">New This Month</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.tickets?.created_this_month || 0}</div>
+              <p className="text-xs text-muted-foreground">Volume trend</p>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Resolved</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length}
+              </div>
+              <p className="text-xs text-muted-foreground">Total resolved</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Avg Resolution Time</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">2.4h</div>
+              <p className="text-xs text-muted-foreground">Est. average</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {analytics && (
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tickets by Status</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.by_status}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Tickets by Priority</CardTitle>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.by_priority}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="priority" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         <Card>
           <CardHeader>
@@ -119,6 +204,9 @@ export default function TicketsPage() {
             </div>
           </CardHeader>
           <CardContent>
+            {loading ? (
+                <div className="text-center py-4">Loading tickets...</div>
+            ) : (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -133,11 +221,15 @@ export default function TicketsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tickets.map((ticket) => (
+                  {tickets.length === 0 ? (
+                      <TableRow>
+                          <TableCell colSpan={7} className="text-center">No tickets found</TableCell>
+                      </TableRow>
+                  ) : tickets.map((ticket) => (
                     <TableRow key={ticket.id} className="cursor-pointer">
-                      <TableCell className="font-mono text-sm">{ticket.id}</TableCell>
+                      <TableCell className="font-mono text-sm">{ticket.ticket_number}</TableCell>
                       <TableCell className="font-medium max-w-xs truncate">{ticket.subject}</TableCell>
-                      <TableCell className="text-muted-foreground">{ticket.client}</TableCell>
+                      <TableCell className="text-muted-foreground">{clients[ticket.client_id] || "Unknown"}</TableCell>
                       <TableCell>
                         <Badge variant="secondary" className={getPriorityColor(ticket.priority)}>
                           {ticket.priority}
@@ -148,18 +240,32 @@ export default function TicketsPage() {
                           {ticket.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{ticket.assignee}</TableCell>
+                      <TableCell className="text-muted-foreground">{users[ticket.assigned_to] || "Unassigned"}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {new Date(ticket.created).toLocaleDateString()}
+                        {new Date(ticket.created_at).toLocaleDateString()}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
+            )}
           </CardContent>
         </Card>
+        <AddTicketDialog 
+          open={isAddTicketOpen}
+          onOpenChange={setIsAddTicketOpen}
+          onSuccess={(ticket) => {
+            setTickets(prev => [{
+              ...ticket,
+              // Optimistic or waiting for realtime
+            }, ...prev])
+            // Reload to get full relations if needed
+            loadData()
+          }}
+        />
       </div>
     </DashboardLayout>
   )
 }
+

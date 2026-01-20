@@ -6,21 +6,44 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Filter, MoreHorizontal } from "lucide-react"
+import { Plus, Search, Filter, MoreHorizontal, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 import { useAuth } from "@/hooks/use-auth"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { AddLeadDialog } from "./add-lead-dialog"
+import { ViewLeadDialog } from "./view-lead-dialog"
+import { EditLeadDialog } from "./edit-lead-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [isAddLeadOpen, setIsAddLeadOpen] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
+  const router = useRouter()
+  
+  // Dialog states
+  const [isAddLeadOpen, setIsAddLeadOpen] = useState(false)
+  const [isViewLeadOpen, setIsViewLeadOpen] = useState(false)
+  const [isEditLeadOpen, setIsEditLeadOpen] = useState(false)
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
+  const [isConvertAlertOpen, setIsConvertAlertOpen] = useState(false)
+  const [selectedLead, setSelectedLead] = useState<any>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     fetchLeads()
@@ -62,37 +85,86 @@ export default function LeadsPage() {
     }
   }
 
-  const handleConvertLead = async (id: number) => {
+  const handleViewLead = (lead: any) => {
+    setSelectedLead(lead)
+    setIsViewLeadOpen(true)
+  }
+
+  const handleEditLead = (lead: any) => {
+    setSelectedLead(lead)
+    setIsEditLeadOpen(true)
+  }
+
+  const confirmConvertLead = (lead: any) => {
+    setSelectedLead(lead)
+    setIsConvertAlertOpen(true)
+  }
+
+  const confirmDeleteLead = (lead: any) => {
+    setSelectedLead(lead)
+    setIsDeleteAlertOpen(true)
+  }
+
+  const handleConvertLead = async () => {
+    if (!selectedLead) return
+
+    // Validation: Ensure email exists
+    if (!selectedLead.email) {
+      toast({
+        title: "Cannot Convert",
+        description: "Lead must have an email address to be converted.",
+        variant: "destructive",
+      })
+      setIsConvertAlertOpen(false)
+      return
+    }
+
+    setActionLoading(true)
     try {
-      await apiClient.convertLead(id)
+      await apiClient.convertLead(selectedLead.id)
       toast({
         title: "Success",
         description: "Lead converted to client successfully",
+        action: (
+          <ToastAction altText="View Client" onClick={() => router.push('/dashboard/clients')}>
+            View Client
+          </ToastAction>
+        ),
       })
       fetchLeads()
-    } catch (error) {
+      setIsConvertAlertOpen(false)
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to convert lead",
+        description: error.message || "Failed to convert lead",
         variant: "destructive",
       })
+    } finally {
+      setActionLoading(false)
+      setSelectedLead(null)
     }
   }
 
-  const handleDeleteLead = async (id: number) => {
+  const handleDeleteLead = async () => {
+    if (!selectedLead) return
+    setActionLoading(true)
     try {
-      await apiClient.deleteLead(id)
+      await apiClient.deleteLead(selectedLead.id)
       toast({
         title: "Success",
         description: "Lead deleted successfully",
       })
       fetchLeads()
+      setIsDeleteAlertOpen(false)
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete lead",
         variant: "destructive",
       })
+    } finally {
+      setActionLoading(false)
+      setSelectedLead(null)
     }
   }
 
@@ -103,6 +175,8 @@ export default function LeadsPage() {
       qualified: "bg-primary/10 text-primary",
       proposal: "bg-warning/10 text-warning",
       negotiation: "bg-success/10 text-success",
+      closed_won: "bg-green-100 text-green-800",
+      closed_lost: "bg-red-100 text-red-800",
     }
     return colors[stage?.toLowerCase()] || "bg-secondary"
   }
@@ -120,7 +194,7 @@ export default function LeadsPage() {
             </p>
           </div>
           {(user?.role?.name === "admin" || user?.role?.name === "manager" || user?.role?.name === "sales") && (
-            <Button>
+            <Button onClick={() => setIsAddLeadOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Add Lead
             </Button>
@@ -157,7 +231,7 @@ export default function LeadsPage() {
             ) : leads.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-center">
                 <p className="text-muted-foreground mb-4">No leads found</p>
-                <Button>
+                <Button onClick={() => setIsAddLeadOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Add your first lead
                 </Button>
@@ -204,12 +278,19 @@ export default function LeadsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleConvertLead(lead.id)}>
+                              <DropdownMenuItem onClick={() => handleViewLead(lead)}>
+                                View details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditLead(lead)}>
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => confirmConvertLead(lead)}
+                                disabled={lead.status === 'converted'}
+                              >
                                 Convert to client
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteLead(lead.id)}>
+                              <DropdownMenuItem className="text-destructive" onClick={() => confirmDeleteLead(lead)}>
                                 Delete
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -224,11 +305,77 @@ export default function LeadsPage() {
           </CardContent>
         </Card>
       </div>
+      
       <AddLeadDialog 
         open={isAddLeadOpen} 
         onOpenChange={setIsAddLeadOpen} 
         onSuccess={fetchLeads}
       />
+
+      <ViewLeadDialog 
+        lead={selectedLead} 
+        open={isViewLeadOpen} 
+        onOpenChange={setIsViewLeadOpen} 
+      />
+
+      <EditLeadDialog 
+        lead={selectedLead} 
+        open={isEditLeadOpen} 
+        onOpenChange={setIsEditLeadOpen} 
+        onSuccess={fetchLeads}
+      />
+
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the lead
+              {selectedLead && <b> {selectedLead.first_name} {selectedLead.last_name}</b>} from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault()
+                handleDeleteLead()
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={actionLoading}
+            >
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isConvertAlertOpen} onOpenChange={setIsConvertAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Convert to Client?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create a new client record from 
+              {selectedLead && <b> {selectedLead.company || `${selectedLead.first_name} ${selectedLead.last_name}`}</b>} 
+              and mark this lead as "Converted".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault()
+                handleConvertLead()
+              }}
+              disabled={actionLoading}
+            >
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Convert
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   )
 }

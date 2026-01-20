@@ -20,6 +20,7 @@ import {
   Bell,
   Search,
   LogOut,
+  Building2,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
@@ -35,9 +36,10 @@ type NavigationItem = {
 const navigation: NavigationItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Leads", href: "/dashboard/leads", icon: TrendingUp, roles: ["admin", "manager", "sales"] },
-  { name: "Clients", href: "/dashboard/clients", icon: Users, roles: ["admin", "manager", "sales", "support", "finance"] },
+  { name: "Clients", href: "/dashboard/clients", icon: Building2, roles: ["admin", "manager", "sales", "support", "finance"] },
   { name: "Projects", href: "/dashboard/projects", icon: Briefcase, roles: ["admin", "manager"] },
   { name: "Tasks", href: "/dashboard/tasks", icon: CheckSquare, roles: ["admin", "manager"] },
+  { name: "Team", href: "/dashboard/team", icon: Users, roles: ["admin", "manager"] },
   { name: "Tickets", href: "/dashboard/tickets", icon: HeadphonesIcon, roles: ["admin", "support", "manager"] },
   { name: "Invoices", href: "/dashboard/invoices", icon: FileText, roles: ["admin", "finance"] },
   { name: "Settings", href: "/dashboard/settings", icon: Settings, roles: ["admin"] },

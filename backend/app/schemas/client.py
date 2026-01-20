@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime, date
 from decimal import Decimal
 from uuid import UUID
+from app.schemas.user import UserResponse
 
 
 # Client Schemas
@@ -25,6 +26,7 @@ class ClientBase(BaseModel):
     payment_terms: Optional[str] = None
     credit_limit: Optional[Decimal] = None
     tax_id: Optional[str] = None
+    meta_data: Optional[dict] = None
 
 
 class ClientCreate(ClientBase):
@@ -50,6 +52,7 @@ class ClientUpdate(BaseModel):
     payment_terms: Optional[str] = None
     credit_limit: Optional[Decimal] = None
     tax_id: Optional[str] = None
+    meta_data: Optional[dict] = None
 
 
 class ClientResponse(ClientBase):
@@ -126,5 +129,32 @@ class ProjectListResponse(BaseModel):
 class ProjectWithClient(ProjectResponse):
     """Schema for project with client details."""
     client: ClientResponse
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Project Member Schemas
+class ProjectMemberBase(BaseModel):
+    """Base project member schema."""
+    role: str = "member"
+
+
+class ProjectMemberCreate(ProjectMemberBase):
+    """Schema for adding a member."""
+    user_id: Optional[UUID] = None
+    email: Optional[EmailStr] = None
+
+
+class ProjectMemberUpdate(ProjectMemberBase):
+    """Schema for updating a member role."""
+    pass
+
+
+class ProjectMemberResponse(ProjectMemberBase):
+    """Schema for project member response."""
+    project_id: UUID
+    user_id: UUID
+    user: UserResponse
+    joined_at: datetime
     
     model_config = ConfigDict(from_attributes=True)

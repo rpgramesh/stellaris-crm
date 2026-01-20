@@ -29,10 +29,11 @@ def main():
         print("❌ SKIPPING: Password placeholder still present in .env")
         print("   Action: Update DATABASE_URL in backend/.env with your actual password.")
     else:
-        if check_db_connection():
+        is_connected, error_msg = check_db_connection()
+        if is_connected:
             print("✅ Database connection successful!")
         else:
-            print("❌ Database connection failed.")
+            print(f"❌ Database connection failed: {error_msg}")
             
     print("\n----------------------------------------\n")
 

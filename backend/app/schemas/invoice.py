@@ -74,6 +74,9 @@ class InvoiceResponse(InvoiceBase):
     amount_paid: Decimal
     currency: str
     created_by: Optional[UUID] = None
+    approved_by: Optional[UUID] = None
+    approved_at: Optional[datetime] = None
+    meta_data: Optional[dict] = None
     created_at: datetime
     updated_at: datetime
     items: List[InvoiceItemResponse] = []

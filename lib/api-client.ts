@@ -104,6 +104,16 @@ export class ApiClient {
     }
   }
 
+  // Reports
+  async getRevenueReport(start_date?: string, end_date?: string, period: "monthly" | "weekly" | "quarterly" = "monthly") {
+    const params = new URLSearchParams()
+    if (start_date) params.append("start_date", start_date)
+    if (end_date) params.append("end_date", end_date)
+    params.append("period", period)
+    const query = params.toString()
+    return this.request(`/reports/revenue${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
   // Dashboard
   async getDashboardStats() {
     return this.request("/reports/dashboard", { method: "GET" })
@@ -119,15 +129,15 @@ export class ApiClient {
     return this.request("/leads", { method: "POST", body: JSON.stringify(data) })
   }
 
-  async updateLead(id: number, data: any) {
-    return this.request(`/leads/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  async updateLead(id: string | number, data: any) {
+    return this.request(`/leads/${id}`, { method: "PATCH", body: JSON.stringify(data) })
   }
 
-  async deleteLead(id: number) {
+  async deleteLead(id: string | number) {
     return this.request(`/leads/${id}`, { method: "DELETE" })
   }
 
-  async convertLead(id: number) {
+  async convertLead(id: string | number) {
     return this.request(`/leads/${id}/convert`, { method: "POST" })
   }
 
@@ -137,16 +147,28 @@ export class ApiClient {
     return this.request(`/clients${query ? `?${query}` : ""}`, { method: "GET" })
   }
 
+  async getClient(id: string | number) {
+    return this.request(`/clients/${id}`, { method: "GET" })
+  }
+
   async createClient(data: any) {
     return this.request("/clients", { method: "POST", body: JSON.stringify(data) })
   }
 
-  async updateClient(id: number, data: any) {
-    return this.request(`/clients/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  async updateClient(id: string | number, data: any) {
+    return this.request(`/clients/${id}`, { method: "PATCH", body: JSON.stringify(data) })
   }
 
-  async deleteClient(id: number) {
+  async deleteClient(id: string | number) {
     return this.request(`/clients/${id}`, { method: "DELETE" })
+  }
+
+  async restoreClient(id: string | number) {
+    return this.request(`/clients/${id}/restore`, { method: "POST" })
+  }
+
+  async getClientProjects(id: string | number) {
+    return this.request(`/clients/${id}/projects`, { method: "GET" })
   }
 
   // Projects
@@ -159,12 +181,29 @@ export class ApiClient {
     return this.request("/projects", { method: "POST", body: JSON.stringify(data) })
   }
 
-  async updateProject(id: number, data: any) {
+  async updateProject(id: string | number, data: any) {
     return this.request(`/projects/${id}`, { method: "PUT", body: JSON.stringify(data) })
   }
 
-  async deleteProject(id: number) {
+  async deleteProject(id: string | number) {
     return this.request(`/projects/${id}`, { method: "DELETE" })
+  }
+
+  // Project Members
+  async getProjectMembers(projectId: string | number) {
+    return this.request(`/projects/${projectId}/members`, { method: "GET" })
+  }
+
+  async addProjectMember(projectId: string | number, data: any) {
+    return this.request(`/projects/${projectId}/members`, { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async removeProjectMember(projectId: string | number, userId: string | number) {
+    return this.request(`/projects/${projectId}/members/${userId}`, { method: "DELETE" })
+  }
+
+  async updateProjectMember(projectId: string | number, userId: string | number, data: any) {
+    return this.request(`/projects/${projectId}/members/${userId}`, { method: "PUT", body: JSON.stringify(data) })
   }
 
   // Tasks
@@ -177,12 +216,26 @@ export class ApiClient {
     return this.request("/tasks", { method: "POST", body: JSON.stringify(data) })
   }
 
-  async updateTask(id: number, data: any) {
-    return this.request(`/tasks/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  async updateTask(id: string | number, data: any) {
+    return this.request(`/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) })
   }
 
-  async deleteTask(id: number) {
+  async deleteTask(id: string | number) {
     return this.request(`/tasks/${id}`, { method: "DELETE" })
+  }
+
+  // Users
+  async getUsers(params?: Record<string, any>) {
+    const query = new URLSearchParams(params).toString()
+    return this.request(`/users${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async inviteUser(data: any) {
+    return this.request("/users/invite", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async deleteUser(userId: string) {
+    return this.request(`/users/${userId}`, { method: "DELETE" })
   }
 
   // Tickets
@@ -191,15 +244,19 @@ export class ApiClient {
     return this.request(`/tickets${query ? `?${query}` : ""}`, { method: "GET" })
   }
 
+  async getTicketAnalytics() {
+    return this.request("/reports/ticket-analytics", { method: "GET" })
+  }
+
   async createTicket(data: any) {
     return this.request("/tickets", { method: "POST", body: JSON.stringify(data) })
   }
 
-  async updateTicket(id: number, data: any) {
-    return this.request(`/tickets/${id}`, { method: "PUT", body: JSON.stringify(data) })
+  async updateTicket(id: string | number, data: any) {
+    return this.request(`/tickets/${id}`, { method: "PATCH", body: JSON.stringify(data) })
   }
 
-  async deleteTicket(id: number) {
+  async deleteTicket(id: string | number) {
     return this.request(`/tickets/${id}`, { method: "DELETE" })
   }
 
@@ -213,11 +270,19 @@ export class ApiClient {
     return this.request("/invoices", { method: "POST", body: JSON.stringify(data) })
   }
 
-  async updateInvoice(id: number, data: any) {
+  async updateInvoice(id: string | number, data: any) {
     return this.request(`/invoices/${id}`, { method: "PUT", body: JSON.stringify(data) })
   }
 
-  async deleteInvoice(id: number) {
+  async approveInvoice(id: string | number) {
+    return this.request(`/invoices/${id}/approve`, { method: "POST" })
+  }
+
+  async sendInvoice(id: string | number) {
+    return this.request(`/invoices/${id}/send`, { method: "POST" })
+  }
+
+  async deleteInvoice(id: string | number) {
     return this.request(`/invoices/${id}`, { method: "DELETE" })
   }
 }

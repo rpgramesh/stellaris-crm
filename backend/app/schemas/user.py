@@ -28,6 +28,12 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
 
 
+class UserInvite(UserBase):
+    """Schema for user invitation."""
+    role_id: Optional[UUID] = None
+
+
+
 class UserLogin(BaseModel):
     """Schema for user login."""
     email: EmailStr

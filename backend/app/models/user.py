@@ -64,6 +64,7 @@ class User(Base):
     # Relationships
     role = relationship("Role", back_populates="users")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    project_memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
 
 
 class RefreshToken(Base):

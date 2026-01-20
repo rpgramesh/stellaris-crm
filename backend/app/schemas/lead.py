@@ -20,6 +20,7 @@ class LeadBase(BaseModel):
     estimated_value: Optional[Decimal] = None
     expected_close_date: Optional[date] = None
     notes: Optional[str] = None
+    meta_data: Optional[dict] = None
 
 
 class LeadCreate(LeadBase):

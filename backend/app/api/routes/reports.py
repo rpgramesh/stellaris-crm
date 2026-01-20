@@ -104,11 +104,38 @@ async def get_dashboard_stats(
     if revenue_last_month > 0:
         revenue_growth = ((revenue_this_month - revenue_last_month) / revenue_last_month * 100)
     
+    # Active Clients List (for tooltips)
+    active_clients_list = db.query(Client.company_name).filter(
+        Client.deleted_at.is_(None),
+        Client.status == 'active'
+    ).limit(5).all()
+    
+    # Projects Progress
+    # Calculate average completion based on tasks
+    active_projects_list = db.query(Project).filter(
+        Project.deleted_at.is_(None),
+        Project.status == 'in_progress'
+    ).all()
+    
+    total_project_completion = 0
+    projects_with_tasks = 0
+    
+    for project in active_projects_list:
+        p_tasks_total = db.query(Task).filter(Task.project_id == project.id, Task.deleted_at.is_(None)).count()
+        if p_tasks_total > 0:
+            p_tasks_completed = db.query(Task).filter(Task.project_id == project.id, Task.status == 'completed', Task.deleted_at.is_(None)).count()
+            total_project_completion += (p_tasks_completed / p_tasks_total * 100)
+            projects_with_tasks += 1
+            
+    avg_project_completion = (total_project_completion / projects_with_tasks) if projects_with_tasks > 0 else 0
+
     return {
         "summary": {
             "total_leads": total_leads,
             "active_clients": active_clients,
+            "active_clients_list": [c[0] for c in active_clients_list],
             "active_projects": active_projects,
+            "avg_project_completion": round(avg_project_completion, 1),
             "pending_tasks": pending_tasks,
             "open_tickets": open_tickets
         },
@@ -195,11 +222,12 @@ async def get_sales_pipeline_report(
 async def get_revenue_report(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
+    period: str = Query("monthly", regex="^(weekly|monthly|quarterly)$"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get revenue report for specified date range.
+    Get revenue report for specified date range and period.
     """
     # Default to current year if no dates provided
     if not start_date:
@@ -207,17 +235,65 @@ async def get_revenue_report(
     if not end_date:
         end_date = date.today()
     
-    # Monthly revenue breakdown
-    monthly_revenue = db.query(
-        extract('year', Invoice.created_at).label('year'),
-        extract('month', Invoice.created_at).label('month'),
+    # Base query for revenue
+    base_query = db.query(
         func.sum(Invoice.total_amount).label('total'),
         func.count(Invoice.id).label('count')
     ).filter(
         Invoice.status == 'paid',
         Invoice.created_at >= start_date,
         Invoice.created_at <= end_date
-    ).group_by('year', 'month').order_by('year', 'month').all()
+    )
+    
+    revenue_data = []
+    
+    if period == "monthly":
+        results = base_query.add_columns(
+            extract('year', Invoice.created_at).label('year'),
+            extract('month', Invoice.created_at).label('month')
+        ).group_by('year', 'month').order_by('year', 'month').all()
+        
+        revenue_data = [
+            {
+                "label": f"{int(r.year)}-{int(r.month):02d}",
+                "year": int(r.year),
+                "month": int(r.month),
+                "revenue": float(r.total),
+                "invoice_count": r.count
+            } for r in results
+        ]
+        
+    elif period == "weekly":
+        results = base_query.add_columns(
+            extract('year', Invoice.created_at).label('year'),
+            extract('week', Invoice.created_at).label('week')
+        ).group_by('year', 'week').order_by('year', 'week').all()
+        
+        revenue_data = [
+            {
+                "label": f"{int(r.year)}-W{int(r.week):02d}",
+                "year": int(r.year),
+                "week": int(r.week),
+                "revenue": float(r.total),
+                "invoice_count": r.count
+            } for r in results
+        ]
+        
+    elif period == "quarterly":
+        results = base_query.add_columns(
+            extract('year', Invoice.created_at).label('year'),
+            extract('quarter', Invoice.created_at).label('quarter')
+        ).group_by('year', 'quarter').order_by('year', 'quarter').all()
+        
+        revenue_data = [
+            {
+                "label": f"{int(r.year)}-Q{int(r.quarter)}",
+                "year": int(r.year),
+                "quarter": int(r.quarter),
+                "revenue": float(r.total),
+                "invoice_count": r.count
+            } for r in results
+        ]
     
     # Payment method breakdown
     payment_methods = db.query(
@@ -234,15 +310,8 @@ async def get_revenue_report(
             "start": str(start_date),
             "end": str(end_date)
         },
-        "monthly_revenue": [
-            {
-                "year": int(r[0]),
-                "month": int(r[1]),
-                "revenue": float(r[2]),
-                "invoice_count": r[3]
-            }
-            for r in monthly_revenue
-        ],
+        "period": period,
+        "revenue_data": revenue_data,
         "payment_methods": [
             {
                 "method": r[0] or "unspecified",

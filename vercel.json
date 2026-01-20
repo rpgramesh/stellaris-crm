@@ -2,5 +2,12 @@
   "buildCommand": "next build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "rewrites": [
+    { "source": "/api/v1/(.*)", "destination": "/api/index.py" },
+    { "source": "/health", "destination": "/api/index.py" },
+    { "source": "/api/docs", "destination": "/api/index.py" },
+    { "source": "/api/redoc", "destination": "/api/index.py" },
+    { "source": "/api/openapi.json", "destination": "/api/index.py" }
+  ]
 }

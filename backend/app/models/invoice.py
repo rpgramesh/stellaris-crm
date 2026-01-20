@@ -2,7 +2,7 @@
 Invoice and payment models.
 """
 from datetime import datetime, date
-from sqlalchemy import Column, String, Date, Numeric, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Date, Numeric, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -29,6 +29,9 @@ class Invoice(Base):
     payment_terms = Column(String(50))
     notes = Column(Text)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    approved_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    approved_at = Column(DateTime)
+    meta_data = Column("metadata", JSON, default={})
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -36,6 +39,7 @@ class Invoice(Base):
     client = relationship("Client")
     project = relationship("Project")
     creator = relationship("User", foreign_keys=[created_by])
+    approver = relationship("User", foreign_keys=[approved_by])
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="invoice")
 

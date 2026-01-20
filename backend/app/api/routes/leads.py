@@ -2,6 +2,7 @@
 Lead management API routes.
 """
 from typing import Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
@@ -237,17 +238,44 @@ async def convert_lead_to_client(
         )
     
     # Create new client from lead
-    new_client = Client(
-        company_name=lead.company or f"{lead.first_name} {lead.last_name}",
-        primary_contact_name=f"{lead.first_name} {lead.last_name}",
-        primary_contact_email=lead.email,
-        primary_contact_phone=lead.phone,
-        account_manager_id=lead.assigned_to or current_user.id,
-        status="active"
-    )
+    client_data = {
+        "company_name": lead.company or f"{lead.first_name} {lead.last_name}",
+        "primary_contact_name": f"{lead.first_name} {lead.last_name}",
+        "primary_contact_email": lead.email,
+        "primary_contact_phone": lead.phone,
+        "account_manager_id": lead.assigned_to or current_user.id,
+        "status": "active",
+        "meta_data": lead.meta_data or {}
+    }
+
+    # Add notes to metadata if present
+    if lead.notes:
+        if not client_data["meta_data"]:
+            client_data["meta_data"] = {}
+        client_data["meta_data"]["notes"] = lead.notes
+
+    # Add conversion audit log
+    if not client_data["meta_data"]:
+        client_data["meta_data"] = {}
     
-    db.add(new_client)
-    db.flush()
+    client_data["meta_data"]["conversion_log"] = {
+        "converted_at": datetime.utcnow().isoformat(),
+        "converted_by": str(current_user.id),
+        "from_lead_id": str(lead.id),
+        "original_source": lead.source
+    }
+
+    new_client = Client(**client_data)
+    
+    try:
+        db.add(new_client)
+        db.flush()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create client: {str(e)}"
+        )
     
     # Update lead
     lead.status = "converted"

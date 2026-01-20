@@ -41,6 +41,20 @@ class Client(Base):
     projects = relationship("Project", back_populates="client")
 
 
+class ProjectMember(Base):
+    """Project member model for team management."""
+    __tablename__ = "project_members"
+    
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    role = Column(String(50), default="member")  # admin, editor, viewer
+    joined_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    project = relationship("Project", back_populates="members")
+    user = relationship("User", back_populates="project_memberships")
+
+
 class Project(Base):
     """Project model for client work."""
     __tablename__ = "projects"
@@ -64,3 +78,4 @@ class Project(Base):
     # Relationships
     client = relationship("Client", back_populates="projects")
     project_manager = relationship("User", foreign_keys=[project_manager_id])
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")

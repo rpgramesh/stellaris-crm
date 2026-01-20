@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { RoleGuard } from "@/components/role-guard"
+import { AddMemberDialog } from "../team/components/add-member-dialog"
 
 export default function SettingsPage() {
+  const [isInviteOpen, setIsInviteOpen] = useState(false)
   const [profile, setProfile] = useState({
     firstName: "John",
     lastName: "Doe",
@@ -42,6 +44,16 @@ export default function SettingsPage() {
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground mt-1">Manage your account and application preferences</p>
         </div>
+
+        <Card>
+            <CardHeader>
+              <CardTitle>Team Management</CardTitle>
+              <CardDescription>Invite and manage team members</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => setIsInviteOpen(true)}>Add Member</Button>
+            </CardContent>
+        </Card>
 
           <div className="grid gap-6">
           <Card>
@@ -166,6 +178,12 @@ export default function SettingsPage() {
           </Card>
           </div>
         </div>
+        
+        <AddMemberDialog 
+          open={isInviteOpen}
+          onOpenChange={setIsInviteOpen}
+          onSuccess={() => {}}
+        />
       </DashboardLayout>
     </RoleGuard>
   )

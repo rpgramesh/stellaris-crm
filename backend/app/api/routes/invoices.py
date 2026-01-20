@@ -88,7 +88,17 @@ async def create_invoice(
         total_amount=totals["total_amount"],
         payment_terms=invoice_data.payment_terms,
         notes=invoice_data.notes,
-        created_by=current_user.id
+        created_by=current_user.id,
+        meta_data={
+            "audit_log": [
+                {
+                    "action": "created",
+                    "user_id": str(current_user.id),
+                    "user_name": current_user.full_name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ]
+        }
     )
     
     db.add(new_invoice)
@@ -219,6 +229,21 @@ async def update_invoice(
     for field, value in update_data.items():
         setattr(invoice, field, value)
     
+    # Audit logging
+    audit_entry = {
+        "action": "updated",
+        "user_id": str(current_user.id),
+        "user_name": current_user.full_name,
+        "timestamp": datetime.utcnow().isoformat(),
+        "changes": list(update_data.keys())
+    }
+    
+    current_meta = dict(invoice.meta_data or {})
+    audit_log = current_meta.get("audit_log", [])
+    audit_log.append(audit_entry)
+    current_meta["audit_log"] = audit_log
+    invoice.meta_data = current_meta
+
     db.commit()
     db.refresh(invoice)
     
@@ -259,6 +284,57 @@ async def delete_invoice(
     )
 
 
+@router.post("/{invoice_id}/approve", response_model=APIResponse)
+async def approve_invoice(
+    invoice_id: UUID,
+    current_user: User = Depends(RoleChecker(["admin", "manager", "finance"])),
+    db: Session = Depends(get_db)
+):
+    """
+    Approve an invoice.
+    
+    Permissions: admin, manager, finance
+    """
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found"
+        )
+    
+    if invoice.status != 'draft':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only approve draft invoices"
+        )
+    
+    invoice.status = 'approved'
+    invoice.approved_by = current_user.id
+    invoice.approved_at = datetime.utcnow()
+    
+    # Audit logging
+    audit_entry = {
+        "action": "approved",
+        "user_id": str(current_user.id),
+        "user_name": current_user.full_name,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    current_meta = dict(invoice.meta_data or {})
+    audit_log = current_meta.get("audit_log", [])
+    audit_log.append(audit_entry)
+    current_meta["audit_log"] = audit_log
+    invoice.meta_data = current_meta
+    
+    db.commit()
+    
+    return APIResponse(
+        success=True,
+        message="Invoice approved successfully"
+    )
+
+
 @router.post("/{invoice_id}/send", response_model=APIResponse)
 async def send_invoice(
     invoice_id: UUID,
@@ -278,13 +354,28 @@ async def send_invoice(
             detail="Invoice not found"
         )
     
-    if invoice.status != 'draft':
+    if invoice.status not in ['draft', 'approved']:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only send draft invoices"
+            detail="Can only send draft or approved invoices"
         )
     
     invoice.status = 'sent'
+    
+    # Audit logging
+    audit_entry = {
+        "action": "sent",
+        "user_id": str(current_user.id),
+        "user_name": current_user.full_name,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    current_meta = dict(invoice.meta_data or {})
+    audit_log = current_meta.get("audit_log", [])
+    audit_log.append(audit_entry)
+    current_meta["audit_log"] = audit_log
+    invoice.meta_data = current_meta
+    
     db.commit()
     
     return APIResponse(

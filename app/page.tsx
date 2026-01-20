@@ -73,8 +73,8 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-            <div className="relative lg:h-[500px]">
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent rounded-3xl" />
+            <div className="relative lg:h-125">
+              <div className="absolute inset-0 bg-linear-to-tr from-primary/20 to-transparent rounded-3xl" />
               <div className="relative h-full rounded-3xl border border-border bg-card/50 backdrop-blur-sm p-8 flex items-center justify-center">
                 <div className="grid grid-cols-2 gap-4 w-full">
                   <div className="bg-secondary rounded-lg p-4 border border-border">

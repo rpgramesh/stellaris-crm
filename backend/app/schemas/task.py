@@ -22,6 +22,7 @@ class TaskCreate(TaskBase):
     """Schema for creating a new task."""
     project_id: UUID
     assigned_to: Optional[UUID] = None
+    status: Optional[str] = "todo"
 
 
 class TaskUpdate(BaseModel):

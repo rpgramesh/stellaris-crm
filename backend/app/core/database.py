@@ -1,13 +1,10 @@
 """
 Database connection and session management.
-
-This module handles the SQLAlchemy database connection, including:
-- Connection pooling configuration
-- Error handling and logging
-- Session management
-- Connection verification
 """
 import logging
+import socket
+import re
+from urllib.parse import urlparse, urlunparse
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool
@@ -24,6 +21,35 @@ engine_connect_args: dict = {}
 # Supabase requires SSL mode
 if settings.DATABASE_SSL_MODE:
     engine_connect_args["sslmode"] = settings.DATABASE_SSL_MODE
+
+# Hack: Resolve hostname to IPv4 to avoid Vercel IPv6 issues
+db_url = settings.DATABASE_URL
+
+# Fix for Vercel IPv6 issue: Use Supavisor Regional Pooler (IPv4)
+# The direct connection (db.project.supabase.co) only resolves to IPv6 in Vercel, which fails.
+# We switch to the regional pooler which supports IPv4.
+import os
+match = re.search(r"db\.([a-z0-9]+)\.supabase\.co", db_url)
+if match and os.environ.get("VERCEL"):
+    project_ref = match.group(1)
+    # AP South 1 (Mumbai) pooler
+    pooler_host = "aws-0-ap-south-1.pooler.supabase.com"
+    
+    # Replace host
+    db_url = db_url.replace(f"db.{project_ref}.supabase.co", pooler_host)
+    
+    # Update username to include project ref (required for Supavisor)
+    # e.g., postgres -> postgres.project_ref
+    parsed = urlparse(db_url)
+    if parsed.username and project_ref not in parsed.username:
+        new_user = f"{parsed.username}.{project_ref}"
+        db_url = db_url.replace(f"://{parsed.username}:", f"://{new_user}:")
+    
+    # Use port 6543 (Transaction Mode) for better serverless compatibility
+    if ":5432" in db_url:
+        db_url = db_url.replace(":5432", ":6543")
+
+    logger.info(f"Switched to Supavisor Pooler: {pooler_host} for project {project_ref} (Port 6543)")
 
 # Engine configuration with pooling
 # Requirement 3: Connection pooling for optimal performance
@@ -42,7 +68,7 @@ if engine_connect_args:
 # Create database engine
 try:
     engine = create_engine(
-        settings.DATABASE_URL,
+        db_url,
         **engine_kwargs,
     )
     logger.info("Database engine created successfully")
@@ -57,17 +83,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class for models
 Base = declarative_base()
 
-
 def get_db():
     """
     Dependency that provides a database session.
     Automatically closes the session after the request.
-    
-    Yields:
-        Session: SQLAlchemy database session
-        
-    Raises:
-        SQLAlchemyError: If database connection fails
     """
     db = SessionLocal()
     try:
@@ -78,21 +97,42 @@ def get_db():
     finally:
         db.close()
 
-
 def check_db_connection():
     """
     Verify database connection by executing a simple query.
-    
-    Requirement 6: Verify connection works
-    
-    Returns:
-        bool: True if connection is successful, False otherwise
     """
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
             logger.info("Database connection verified successfully")
-            return True
+            return True, None
     except Exception as e:
-        logger.error(f"Database connection check failed: {str(e)}")
-        return False
+        error_msg = str(e)
+        try:
+            # Add debug info for Vercel troubleshooting
+            from urllib.parse import urlparse
+            safe_url = engine.url.render_as_string(hide_password=True)
+            parsed = urlparse(safe_url)
+            hostname = parsed.hostname
+            
+            # Resolve hostname to check what Vercel sees
+            import socket
+            ip_debug = "Resolution failed"
+            try:
+                # Try IPv4 first
+                ipv4 = socket.gethostbyname(hostname)
+                ip_debug = f"IPv4: {ipv4}"
+            except Exception:
+                # Try IPv6
+                try:
+                    addr_info = socket.getaddrinfo(hostname, 5432, socket.AF_INET6)
+                    ip_debug = f"IPv6: {[a[4][0] for a in addr_info]}"
+                except Exception as e6:
+                    ip_debug = f"Resolution Error: {str(e6)}"
+            
+            error_msg += f" | DB_URL_HOST: {hostname} | DNS: {ip_debug}"
+        except Exception as debug_e:
+            error_msg += f" | Debug Error: {str(debug_e)}"
+            
+        logger.error(f"Database connection check failed: {error_msg}")
+        return False, error_msg

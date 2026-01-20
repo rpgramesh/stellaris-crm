@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, date
 from app.core.database import get_db
 from app.models.task import Task
 from app.models.user import User
@@ -31,7 +31,17 @@ async def create_task(
     """
     new_task = Task(
         **task_data.model_dump(),
-        created_by=current_user.id
+        created_by=current_user.id,
+        meta_data={
+            "audit_log": [
+                {
+                    "action": "created",
+                    "user_id": str(current_user.id),
+                    "user_name": current_user.full_name,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ]
+        }
     )
     
     db.add(new_task)
@@ -49,6 +59,7 @@ async def list_tasks(
     priority: Optional[str] = Query(None),
     project_id: Optional[UUID] = Query(None),
     assigned_to: Optional[UUID] = Query(None),
+    due_before: Optional[date] = Query(None),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -65,6 +76,8 @@ async def list_tasks(
         query = query.filter(Task.project_id == project_id)
     if assigned_to:
         query = query.filter(Task.assigned_to == assigned_to)
+    if due_before:
+        query = query.filter(Task.due_date <= due_before)
     
     total = query.count()
     offset = (page - 1) * page_size
@@ -116,6 +129,21 @@ async def update_task(
     for field, value in update_data.items():
         setattr(task, field, value)
     
+    # Audit logging
+    audit_entry = {
+        "action": "updated",
+        "user_id": str(current_user.id),
+        "user_name": current_user.full_name,
+        "timestamp": datetime.utcnow().isoformat(),
+        "changes": list(update_data.keys())
+    }
+    
+    current_meta = dict(task.meta_data or {})
+    audit_log = current_meta.get("audit_log", [])
+    audit_log.append(audit_entry)
+    current_meta["audit_log"] = audit_log
+    task.meta_data = current_meta
+
     db.commit()
     db.refresh(task)
     
@@ -135,6 +163,21 @@ async def delete_task(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     
     task.deleted_at = datetime.utcnow()
+    
+    # Audit logging
+    audit_entry = {
+        "action": "deleted",
+        "user_id": str(current_user.id),
+        "user_name": current_user.full_name,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    current_meta = dict(task.meta_data or {})
+    audit_log = current_meta.get("audit_log", [])
+    audit_log.append(audit_entry)
+    current_meta["audit_log"] = audit_log
+    task.meta_data = current_meta
+    
     db.commit()
     
     return APIResponse(success=True, message="Task deleted successfully")
