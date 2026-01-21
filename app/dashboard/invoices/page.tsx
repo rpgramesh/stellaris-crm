@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,6 +24,13 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [clients, setClients] = useState<Record<string, string>>({})
   const [stats, setStats] = useState<any>(null)
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get("new") === "true") {
+      setIsAddInvoiceOpen(true)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     loadData()

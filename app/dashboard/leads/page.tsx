@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Filter, MoreHorizontal, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
@@ -35,6 +35,7 @@ export default function LeadsPage() {
   const { toast } = useToast()
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   
   // Dialog states
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false)
@@ -45,9 +46,28 @@ export default function LeadsPage() {
   const [selectedLead, setSelectedLead] = useState<any>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
+  const fetchLeads = async () => {
+    try {
+      const data: any = await apiClient.getLeads()
+      setLeads(data.items || data || [])
+    } catch (error) {
+      console.error("[v0] Failed to fetch leads:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load leads",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
+    if (searchParams && searchParams.get("new") === "true") {
+      setIsAddLeadOpen(true)
+    }
     fetchLeads()
-  }, [])
+  }, [searchParams])
 
   useSupabaseRealtime<any>({
     table: "leads",
@@ -68,22 +88,6 @@ export default function LeadsPage() {
       setLeads((current) => current.filter((lead) => lead.id !== payload.old.id))
     },
   })
-
-  const fetchLeads = async () => {
-    try {
-      const data: any = await apiClient.getLeads()
-      setLeads(data.items || data || [])
-    } catch (error) {
-      console.error("[v0] Failed to fetch leads:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load leads",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleViewLead = (lead: any) => {
     setSelectedLead(lead)

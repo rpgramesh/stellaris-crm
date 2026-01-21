@@ -2,7 +2,7 @@
 
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Users, Briefcase, DollarSign, ArrowUp, ArrowDown, RefreshCw, Phone, Mail, Eye, CheckCircle2 } from "lucide-react"
+import { TrendingUp, Users, Briefcase, DollarSign, ArrowUp, ArrowDown, RefreshCw, Phone, Mail, Eye, CheckCircle2, Calendar, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useEffect, useState, useCallback } from "react"
@@ -42,8 +42,8 @@ export default function DashboardPage() {
 
       const [statsRes, leadsRes, tasksRes, revenueRes] = await Promise.all([
         apiClient.getDashboardStats(),
-        apiClient.getLeads({ page_size: 10, sort: "created_at:desc" }),
-        apiClient.getTasks({ page_size: 10, status: "todo", sort: "due_date:asc", due_before: dueBefore }),
+        apiClient.getLeads({ page_size: 5, sort: "created_at:desc" }),
+        apiClient.getTasks({ page_size: 5, status: "todo", sort: "due_date:asc", due_before: dueBefore }),
         apiClient.getRevenueReport(undefined, undefined, period)
       ])
 
@@ -126,22 +126,29 @@ export default function DashboardPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground mt-1">
-              Welcome back, {user?.full_name}! Here's your business overview.
+              Overview of your business performance.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Last updated: {format(lastUpdated, "h:mm:ss a")}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground hidden sm:inline-block">
+              Updated: {format(lastUpdated, "h:mm a")}
+            </span>
             <Button variant="outline" size="icon" onClick={() => loadData(true)} disabled={loading || isRefreshing}>
               <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
             </Button>
+            <Link href="/dashboard/leads?new=true">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Lead
+              </Button>
+            </Link>
           </div>
         </div>
 
         {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {/* Total Leads */}
           <Link href="/dashboard/leads">
             <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -159,11 +166,10 @@ export default function DashboardPage() {
 
           {isAdminLike && (
             <>
-              {/* Active Clients */}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Card className="cursor-help">
+                    <Card className="cursor-help hover:bg-accent/50 transition-colors h-full">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -194,7 +200,6 @@ export default function DashboardPage() {
                 </Tooltip>
               </TooltipProvider>
 
-              {/* Active Projects */}
               <Link href="/dashboard/projects">
                 <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -214,8 +219,7 @@ export default function DashboardPage() {
                 </Card>
               </Link>
 
-              {/* Revenue (MTD) */}
-              <Card>
+              <Card className="h-full">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Revenue (MTD)</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -239,217 +243,228 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-7">
-          {/* Revenue Chart */}
-          {isAdminLike && (
-            <Card className="col-span-4">
+        {/* Main Content Grid */}
+        <div className="grid gap-4 md:grid-cols-7 lg:grid-cols-7">
+          
+          {/* Left Column (Main) */}
+          <div className="col-span-4 md:col-span-4 lg:col-span-5 space-y-4">
+            
+            {/* Revenue Chart */}
+            {isAdminLike && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Revenue Overview</CardTitle>
+                      <CardDescription>Performance over time</CardDescription>
+                    </div>
+                    <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+                      <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Period" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+                <CardContent className="pl-2">
+                  <div className="h-[300px] w-full">
+                    {chartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="hsl(var(--muted-foreground))" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            dy={10}
+                          />
+                          <YAxis 
+                            stroke="hsl(var(--muted-foreground))" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(value) => `$${value}`} 
+                          />
+                          <RechartsTooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              borderColor: 'hsl(var(--border))', 
+                              borderRadius: 'var(--radius)' 
+                            }}
+                            formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
+                            labelFormatter={(label, payload) => payload[0]?.payload?.fullLabel || label}
+                            cursor={{ fill: 'hsl(var(--accent))', opacity: 0.2 }}
+                          />
+                          <Bar 
+                            dataKey="revenue" 
+                            fill="hsl(var(--primary))" 
+                            radius={[4, 4, 0, 0]} 
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        No revenue data available
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent Leads */}
+            <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Revenue Overview</CardTitle>
-                    <CardDescription>Revenue performance over time</CardDescription>
+                    <CardTitle>Recent Leads</CardTitle>
+                    <CardDescription>Latest pipeline activity</CardDescription>
                   </div>
-                  <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Period" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                      <SelectItem value="quarterly">Quarterly</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Link href="/dashboard/leads">
+                    <Button variant="outline" size="sm">
+                      View all
+                    </Button>
+                  </Link>
                 </div>
               </CardHeader>
-              <CardContent className="pl-2">
-                <div className="h-[300px] w-full">
-                  {chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis 
-                          dataKey="name" 
-                          stroke="#888888" 
-                          fontSize={12} 
-                          tickLine={false} 
-                          axisLine={false} 
-                        />
-                        <YAxis 
-                          stroke="#888888" 
-                          fontSize={12} 
-                          tickLine={false} 
-                          axisLine={false} 
-                          tickFormatter={(value) => `$${value}`} 
-                        />
-                        <RechartsTooltip 
-                          formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
-                          labelFormatter={(label, payload) => payload[0]?.payload?.fullLabel || label}
-                          cursor={{ fill: 'transparent' }}
-                        />
-                        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+              <CardContent>
+                <div className="space-y-1">
+                  {recentLeads.length > 0 ? (
+                    recentLeads.map((lead) => (
+                      <div
+                        key={lead.id}
+                        className="flex items-center justify-between py-3 px-2 hover:bg-accent/50 rounded-md transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                             <TrendingUp className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate text-sm">{lead.company || `${lead.first_name} ${lead.last_name}`}</p>
+                            <p className="text-xs text-muted-foreground truncate">{lead.first_name} {lead.last_name} • {format(new Date(lead.created_at), "MMM d")}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="capitalize whitespace-nowrap text-xs h-6">{lead.stage?.replace("_", " ")}</Badge>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                            <Link href={`/dashboard/leads/${lead.id}`}>
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    ))
                   ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">
-                      No revenue data available
+                    <div className="text-center py-8 text-muted-foreground">No recent leads</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
+
+          {/* Right Column (Sidebar) */}
+          <div className="col-span-3 md:col-span-3 lg:col-span-2 space-y-4">
+            
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-2">
+                 <Link href="/dashboard/leads?new=true" className="w-full">
+                    <Button variant="outline" className="w-full h-20 flex flex-col gap-1 hover:border-primary hover:text-primary transition-all shadow-sm">
+                      <TrendingUp className="h-5 w-5" />
+                      <span className="text-xs">Add Lead</span>
+                    </Button>
+                 </Link>
+                 <Link href="/dashboard/tasks?new=true" className="w-full">
+                    <Button variant="outline" className="w-full h-20 flex flex-col gap-1 hover:border-primary hover:text-primary transition-all shadow-sm">
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span className="text-xs">New Task</span>
+                    </Button>
+                 </Link>
+                 {isAdminLike && (
+                   <>
+                     <Link href="/dashboard/invoices?new=true" className="w-full">
+                        <Button variant="outline" className="w-full h-20 flex flex-col gap-1 hover:border-primary hover:text-primary transition-all shadow-sm">
+                          <DollarSign className="h-5 w-5" />
+                          <span className="text-xs">Invoice</span>
+                        </Button>
+                     </Link>
+                     <Link href="/dashboard/clients?new=true" className="w-full">
+                        <Button variant="outline" className="w-full h-20 flex flex-col gap-1 hover:border-primary hover:text-primary transition-all shadow-sm">
+                          <Users className="h-5 w-5" />
+                          <span className="text-xs">Client</span>
+                        </Button>
+                     </Link>
+                   </>
+                 )}
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Tasks */}
+            <Card className="h-fit">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Upcoming Tasks</CardTitle>
+                  <Link href="/dashboard/tasks">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <ArrowUp className="h-4 w-4 rotate-45" />
+                    </Button>
+                  </Link>
+                </div>
+                <CardDescription>Due in next 7 days</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {upcomingTasks.length > 0 ? (
+                    upcomingTasks.map((task) => (
+                      <div key={task.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-accent/50 transition-colors group">
+                        <Checkbox 
+                          id={`task-${task.id}`} 
+                          onCheckedChange={() => handleTaskComplete(task.id)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <label 
+                            htmlFor={`task-${task.id}`}
+                            className="text-sm font-medium cursor-pointer hover:text-primary transition-colors block truncate"
+                          >
+                            {task.title}
+                          </label>
+                          <div className="flex items-center gap-2 mt-1">
+                             <Badge 
+                              variant={task.priority === "high" ? "destructive" : "secondary"}
+                              className="text-[10px] px-1.5 h-5"
+                            >
+                              {task.priority}
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {task.due_date ? format(new Date(task.due_date), "MMM d") : "-"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center text-muted-foreground">
+                      <CheckCircle2 className="h-8 w-8 mb-2 opacity-20" />
+                      <p className="text-sm">All caught up!</p>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Recent Leads */}
-          <Card className={cn("col-span-3", !isAdminLike && "col-span-7 lg:col-span-7")}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Recent Leads</CardTitle>
-                  <CardDescription>Latest leads in your pipeline</CardDescription>
-                </div>
-                <Link href="/dashboard/leads">
-                  <Button variant="outline" size="sm">
-                    View all
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {recentLeads.length > 0 ? (
-                  recentLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      className="flex items-center justify-between py-2 border-b border-border last:border-0"
-                    >
-                      <div className="flex-1 min-w-0 mr-4">
-                        <p className="font-medium truncate">{lead.company || `${lead.first_name} ${lead.last_name}`}</p>
-                        <p className="text-sm text-muted-foreground truncate">{lead.first_name} {lead.last_name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(lead.created_at), "MMM d, h:mm a")}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="capitalize whitespace-nowrap hidden sm:inline-flex">{lead.stage?.replace("_", " ")}</Badge>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                            <Link href={`/dashboard/leads/${lead.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          {lead.email && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                              <a href={`mailto:${lead.email}`}>
-                                <Mail className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
-                          {lead.phone && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                              <a href={`tel:${lead.phone}`}>
-                                <Phone className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">No recent leads</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Upcoming Tasks */}
-          <Card className="col-span-1">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Upcoming Tasks</CardTitle>
-                  <CardDescription>Tasks due in the next 7 days</CardDescription>
-                </div>
-                <Link href="/dashboard/tasks">
-                  <Button variant="outline" size="sm">
-                    View all
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {upcomingTasks.length > 0 ? (
-                  upcomingTasks.map((task) => (
-                    <div key={task.id} className="flex items-start gap-3 py-2 border-b border-border last:border-0 group">
-                      <Checkbox 
-                        id={`task-${task.id}`} 
-                        onCheckedChange={() => handleTaskComplete(task.id)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1">
-                        <label 
-                          htmlFor={`task-${task.id}`}
-                          className="font-medium cursor-pointer hover:underline"
-                        >
-                          {task.title}
-                        </label>
-                        <p className="text-sm text-muted-foreground">
-                          Due: {task.due_date ? format(new Date(task.due_date), "MMM d, h:mm a") : "No date"}
-                        </p>
-                      </div>
-                      <Badge 
-                        variant={task.priority === "high" ? "destructive" : task.priority === "medium" ? "default" : "secondary"}
-                        className="capitalize"
-                      >
-                        {task.priority}
-                      </Badge>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">No upcoming tasks for next 7 days</div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-           {/* Quick Actions */}
-           <Card className="col-span-1">
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Frequently used actions</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 grid-cols-2">
-               <Link href="/dashboard/leads/new">
-                  <Button variant="outline" className="w-full h-24 flex flex-col gap-2 hover:border-primary hover:text-primary transition-colors">
-                    <TrendingUp className="h-6 w-6" />
-                    <span>Add Lead</span>
-                  </Button>
-               </Link>
-               <Link href="/dashboard/tasks">
-                  <Button variant="outline" className="w-full h-24 flex flex-col gap-2 hover:border-primary hover:text-primary transition-colors">
-                    <Briefcase className="h-6 w-6" />
-                    <span>Create Task</span>
-                  </Button>
-               </Link>
-               {isAdminLike && (
-                 <>
-                   <Link href="/dashboard/invoices">
-                      <Button variant="outline" className="w-full h-24 flex flex-col gap-2 hover:border-primary hover:text-primary transition-colors">
-                        <DollarSign className="h-6 w-6" />
-                        <span>New Invoice</span>
-                      </Button>
-                   </Link>
-                   <Link href="/dashboard/clients">
-                      <Button variant="outline" className="w-full h-24 flex flex-col gap-2 hover:border-primary hover:text-primary transition-colors">
-                        <Users className="h-6 w-6" />
-                        <span>Add Client</span>
-                      </Button>
-                   </Link>
-                 </>
-               )}
-            </CardContent>
-          </Card>
+          </div>
         </div>
       </div>
     </DashboardLayout>

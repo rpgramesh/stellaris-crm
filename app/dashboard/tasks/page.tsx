@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -14,10 +15,14 @@ export default function TasksPage() {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
 
   useEffect(() => {
+    if (searchParams.get("new") === "true") {
+      setIsAddTaskOpen(true)
+    }
     loadTasks()
-  }, [])
+  }, [searchParams])
 
   const loadTasks = async () => {
     try {

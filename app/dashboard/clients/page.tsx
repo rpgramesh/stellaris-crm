@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -63,11 +64,15 @@ export default function ClientsPage() {
   const [isViewOpen, setIsViewOpen] = useState(false)
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const searchParams = useSearchParams()
 
   // Initial fetch
   useEffect(() => {
+    if (searchParams.get("new") === "true") {
+      setIsAddOpen(true)
+    }
     fetchClients()
-  }, [])
+  }, [searchParams])
 
   // Search effect (debounced)
   useEffect(() => {
