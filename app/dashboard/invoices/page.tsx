@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -15,7 +15,7 @@ import { ViewInvoiceDialog } from "./components/view-invoice-dialog"
 import { apiClient } from "@/lib/api-client"
 import { toast } from "sonner"
 
-export default function InvoicesPage() {
+function InvoicesContent() {
   const [isAddInvoiceOpen, setIsAddInvoiceOpen] = useState(false)
   const [isViewInvoiceOpen, setIsViewInvoiceOpen] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
@@ -258,6 +258,14 @@ export default function InvoicesPage() {
         />
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function InvoicesPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <InvoicesContent />
+    </Suspense>
   )
 }
 

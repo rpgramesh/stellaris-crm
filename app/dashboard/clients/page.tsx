@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -51,7 +51,7 @@ interface Client {
   meta_data?: any
 }
 
-export default function ClientsPage() {
+function ClientsContent() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -410,5 +410,13 @@ export default function ClientsPage() {
 
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function ClientsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ClientsContent />
+    </Suspense>
   )
 }

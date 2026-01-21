@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search, Filter, MoreHorizontal, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
@@ -29,7 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-export default function LeadsPage() {
+function LeadsContent() {
   const [leads, setLeads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
@@ -381,5 +381,13 @@ export default function LeadsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </DashboardLayout>
+  )
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LeadsContent />
+    </Suspense>
   )
 }

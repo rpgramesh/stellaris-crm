@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 import { DashboardLayout } from "@/components/dashboard-layout"
@@ -11,7 +11,7 @@ import { TaskBoard, Task } from "./components/task-board"
 import { apiClient } from "@/lib/api-client"
 import { toast } from "sonner"
 
-export default function TasksPage() {
+function TasksContent() {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,6 +82,14 @@ export default function TasksPage() {
         />
       </div>
     </DashboardLayout>
+  )
+}
+
+export default function TasksPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TasksContent />
+    </Suspense>
   )
 }
 
