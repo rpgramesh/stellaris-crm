@@ -222,7 +222,7 @@ async def get_sales_pipeline_report(
 async def get_revenue_report(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
-    period: str = Query("monthly", regex="^(weekly|monthly|quarterly)$"),
+    period: str = Query("monthly", pattern="^(weekly|monthly|quarterly)$"),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):

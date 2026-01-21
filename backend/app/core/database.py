@@ -28,28 +28,17 @@ db_url = settings.DATABASE_URL
 # Fix for Vercel IPv6 issue: Use Supavisor Regional Pooler (IPv4)
 # The direct connection (db.project.supabase.co) only resolves to IPv6 in Vercel, which fails.
 # We switch to the regional pooler which supports IPv4.
+# NOTE: Users should provide the Transaction Mode (Port 6543) connection string directly in DATABASE_URL.
+# This code block is kept for backward compatibility with Direct URLs but is risky if region differs.
 import os
 match = re.search(r"db\.([a-z0-9]+)\.supabase\.co", db_url)
 if match and os.environ.get("VERCEL"):
     project_ref = match.group(1)
-    # AP South 1 (Mumbai) pooler
-    pooler_host = "aws-0-ap-south-1.pooler.supabase.com"
-    
-    # Replace host
-    db_url = db_url.replace(f"db.{project_ref}.supabase.co", pooler_host)
-    
-    # Update username to include project ref (required for Supavisor)
-    # e.g., postgres -> postgres.project_ref
-    parsed = urlparse(db_url)
-    if parsed.username and project_ref not in parsed.username:
-        new_user = f"{parsed.username}.{project_ref}"
-        db_url = db_url.replace(f"://{parsed.username}:", f"://{new_user}:")
-    
-    # Use port 6543 (Transaction Mode) for better serverless compatibility
-    if ":5432" in db_url:
-        db_url = db_url.replace(":5432", ":6543")
-
-    logger.info(f"Switched to Supavisor Pooler: {pooler_host} for project {project_ref} (Port 6543)")
+    # Default to direct URL if no pooler info is available
+    # We removed the hardcoded region rewrite because it breaks if the project is not in ap-south-1
+    # Users MUST provide the correct pooler URL in DATABASE_URL environment variable
+    logger.warning("Detected Vercel environment with Direct Connection URL. This may fail due to IPv6 issues.")
+    logger.warning("Please update DATABASE_URL to use the Supabase Connection Pooler (Transaction Mode, Port 6543).")
 
 # Engine configuration with pooling
 # Requirement 3: Connection pooling for optimal performance
