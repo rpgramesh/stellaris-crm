@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Plus, Search, Filter, Loader2, MoreHorizontal, Mail, Shield, Trash2 } from "lucide-react"
 import { AddMemberDialog } from "./components/add-member-dialog"
+import { ChangeRoleDialog } from "./components/change-role-dialog"
 import { apiClient } from "@/lib/api-client"
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
@@ -52,6 +53,8 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const { toast } = useToast()
 
   const fetchUsers = async () => {
@@ -222,7 +225,10 @@ export default function TeamPage() {
                                   Copy Email
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedUser(user)
+                                  setIsChangeRoleOpen(true)
+                                }}>
                                   <Shield className="mr-2 h-4 w-4" />
                                   Change Role
                                 </DropdownMenuItem>
@@ -246,6 +252,13 @@ export default function TeamPage() {
         <AddMemberDialog 
           open={isInviteOpen} 
           onOpenChange={setIsInviteOpen}
+          onSuccess={fetchUsers}
+        />
+        
+        <ChangeRoleDialog
+          open={isChangeRoleOpen}
+          onOpenChange={setIsChangeRoleOpen}
+          user={selectedUser}
           onSuccess={fetchUsers}
         />
       </div>

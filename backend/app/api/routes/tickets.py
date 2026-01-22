@@ -3,6 +3,8 @@ Support ticket API routes.
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi_cache.decorator import cache
+from app.core.redis import cache_key_builder, invalidate_cache
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
 from uuid import UUID
@@ -71,10 +73,15 @@ async def create_ticket(
     db.commit()
     db.refresh(new_ticket)
     
+    # Invalidate caches
+    await invalidate_cache("tickets")
+    await invalidate_cache("reports")
+    
     return TicketResponse.model_validate(new_ticket)
 
 
 @router.get("", response_model=TicketListResponse)
+@cache(expire=60, namespace="tickets", key_builder=cache_key_builder)
 async def list_tickets(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -130,6 +137,7 @@ async def list_tickets(
 
 
 @router.get("/{ticket_id}", response_model=TicketResponse)
+@cache(expire=60, namespace="tickets", key_builder=cache_key_builder)
 async def get_ticket(
     ticket_id: UUID,
     current_user: User = Depends(get_current_active_user),
@@ -187,6 +195,10 @@ async def update_ticket(
     db.commit()
     db.refresh(ticket)
     
+    # Invalidate caches
+    await invalidate_cache("tickets")
+    await invalidate_cache("reports")
+    
     return TicketResponse.model_validate(ticket)
 
 
@@ -213,10 +225,14 @@ async def add_ticket_comment(
     db.commit()
     db.refresh(new_comment)
     
+    # Invalidate tickets cache
+    await invalidate_cache("tickets")
+    
     return TicketCommentResponse.model_validate(new_comment)
 
 
 @router.get("/{ticket_id}/comments", response_model=list[TicketCommentResponse])
+@cache(expire=60, namespace="tickets", key_builder=cache_key_builder)
 async def get_ticket_comments(
     ticket_id: UUID,
     current_user: User = Depends(get_current_active_user),

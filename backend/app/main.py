@@ -14,6 +14,7 @@ from app.api.routes import (
     invoices_router,
     reports_router,
     users_router,
+    monitoring_router,
 )
 
 # Create FastAPI app
@@ -44,13 +45,16 @@ app.include_router(tickets_router, prefix=settings.API_V1_PREFIX)
 app.include_router(invoices_router, prefix=settings.API_V1_PREFIX)
 app.include_router(reports_router, prefix=settings.API_V1_PREFIX)
 app.include_router(users_router, prefix=settings.API_V1_PREFIX)
+app.include_router(monitoring_router, prefix=settings.API_V1_PREFIX)
 
 from app.core.database import check_db_connection, engine, Base
+from app.core.redis import init_redis
 from fastapi import FastAPI, status, Response
 
 @app.on_event("startup")
 async def startup_db():
     Base.metadata.create_all(bind=engine)
+    await init_redis(app)
 
 # ... imports ...
 

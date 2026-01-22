@@ -3,6 +3,8 @@ Task management API routes.
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi_cache.decorator import cache
+from app.core.redis import cache_key_builder, invalidate_cache
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from uuid import UUID
@@ -48,10 +50,15 @@ async def create_task(
     db.commit()
     db.refresh(new_task)
     
+    # Invalidate caches
+    await invalidate_cache("tasks")
+    await invalidate_cache("reports")
+    
     return TaskResponse.model_validate(new_task)
 
 
 @router.get("", response_model=TaskListResponse)
+@cache(expire=60, namespace="tasks", key_builder=cache_key_builder)
 async def list_tasks(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -147,6 +154,10 @@ async def update_task(
     db.commit()
     db.refresh(task)
     
+    # Invalidate caches
+    await invalidate_cache("tasks")
+    await invalidate_cache("reports")
+    
     return TaskResponse.model_validate(task)
 
 
@@ -179,5 +190,9 @@ async def delete_task(
     task.meta_data = current_meta
     
     db.commit()
+    
+    # Invalidate caches
+    await invalidate_cache("tasks")
+    await invalidate_cache("reports")
     
     return APIResponse(success=True, message="Task deleted successfully")

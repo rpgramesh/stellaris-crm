@@ -2,12 +2,18 @@
 Invoice management API routes.
 """
 from typing import Optional
+from io import BytesIO
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import StreamingResponse
+from fastapi_cache.decorator import cache
+from app.core.redis import cache_key_builder, invalidate_cache
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 from app.core.database import get_db
 from app.models.invoice import Invoice, InvoiceItem, Payment
 from app.models.client import Client
@@ -117,10 +123,15 @@ async def create_invoice(
     db.commit()
     db.refresh(new_invoice)
     
+    # Invalidate invoices cache
+    await invalidate_cache("invoices")
+    await invalidate_cache("reports")
+    
     return InvoiceResponse.model_validate(new_invoice)
 
 
 @router.get("", response_model=InvoiceListResponse)
+@cache(expire=60, key_builder=cache_key_builder, namespace="invoices")
 async def list_invoices(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -175,6 +186,7 @@ async def list_invoices(
 
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse)
+@cache(expire=60, key_builder=cache_key_builder, namespace="invoices")
 async def get_invoice(
     invoice_id: UUID,
     current_user: User = Depends(get_current_active_user),
@@ -247,6 +259,10 @@ async def update_invoice(
     db.commit()
     db.refresh(invoice)
     
+    # Invalidate invoices cache
+    await invalidate_cache("invoices")
+    await invalidate_cache("reports")
+    
     return InvoiceResponse.model_validate(invoice)
 
 
@@ -277,6 +293,10 @@ async def delete_invoice(
     
     db.delete(invoice)
     db.commit()
+    
+    # Invalidate invoices cache
+    await invalidate_cache("invoices")
+    await invalidate_cache("reports")
     
     return APIResponse(
         success=True,
@@ -329,9 +349,42 @@ async def approve_invoice(
     
     db.commit()
     
+    # Invalidate invoices cache
+    await invalidate_cache("invoices")
+    await invalidate_cache("reports")
+    
     return APIResponse(
         success=True,
         message="Invoice approved successfully"
+    )
+
+
+from app.services.pdf_service import generate_invoice_pdf
+
+@router.get("/{invoice_id}/pdf")
+async def download_invoice_pdf(
+    invoice_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate and download invoice PDF.
+    """
+    invoice = db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    
+    if not invoice:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found"
+        )
+    
+    pdf_buffer = generate_invoice_pdf(invoice)
+    filename = f"invoice_{invoice.invoice_number}.pdf"
+    
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
 
@@ -342,7 +395,7 @@ async def send_invoice(
     db: Session = Depends(get_db)
 ):
     """
-    Mark invoice as sent.
+    Mark invoice as sent and mock email sending with PDF.
     
     Permissions: admin, manager, finance
     """
@@ -359,6 +412,16 @@ async def send_invoice(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only send draft or approved invoices"
         )
+    
+    # Generate PDF
+    try:
+        pdf_buffer = generate_invoice_pdf(invoice)
+        # Mock email sending
+        print(f"Sending email to client {invoice.client.email if invoice.client else 'unknown'} with invoice {invoice.invoice_number}")
+        # In a real app, you would attach pdf_buffer.getvalue() to an email
+    except Exception as e:
+        print(f"Error generating PDF for email: {e}")
+        # Log error but proceed with status update or raise exception depending on requirements
     
     invoice.status = 'sent'
     
@@ -377,6 +440,10 @@ async def send_invoice(
     invoice.meta_data = current_meta
     
     db.commit()
+    
+    # Invalidate invoices cache
+    await invalidate_cache("invoices")
+    await invalidate_cache("reports")
     
     return APIResponse(
         success=True,
@@ -430,10 +497,15 @@ async def record_payment(
     db.commit()
     db.refresh(new_payment)
     
+    # Invalidate invoices cache (since payments affect invoice status)
+    await invalidate_cache("invoices")
+    await invalidate_cache("reports")
+    
     return PaymentResponse.model_validate(new_payment)
 
 
 @router.get("/payments/list", response_model=PaymentListResponse)
+@cache(expire=60, key_builder=cache_key_builder, namespace="invoices")
 async def list_payments(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),

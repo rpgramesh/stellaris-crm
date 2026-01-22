@@ -203,7 +203,10 @@ function InvoicesContent() {
                       key={invoice.id} 
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => {
-                        setSelectedInvoice(invoice)
+                        setSelectedInvoice({
+                          ...invoice,
+                          client: clients[invoice.client_id] || "Unknown"
+                        })
                         setIsViewInvoiceOpen(true)
                       }}
                     >
@@ -255,6 +258,7 @@ function InvoicesContent() {
              setInvoices(prev => prev.filter(inv => inv.id !== id))
              setSelectedInvoice(null)
           }}
+          onInvoiceUpdated={loadData}
         />
       </div>
     </DashboardLayout>

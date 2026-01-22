@@ -4,6 +4,8 @@ Lead management API routes.
 from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi_cache.decorator import cache
+from app.core.redis import cache_key_builder, invalidate_cache
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
 from uuid import UUID
@@ -39,10 +41,14 @@ async def create_lead(
     db.commit()
     db.refresh(new_lead)
     
+    # Invalidate caches
+    await invalidate_cache("leads")
+    
     return LeadResponse.model_validate(new_lead)
 
 
 @router.get("", response_model=LeadListResponse)
+@cache(expire=60, namespace="leads", key_builder=cache_key_builder)
 async def list_leads(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -170,6 +176,9 @@ async def update_lead(
     db.commit()
     db.refresh(lead)
     
+    # Invalidate caches
+    await invalidate_cache("leads")
+    
     return LeadResponse.model_validate(lead)
 
 
@@ -198,6 +207,9 @@ async def delete_lead(
     # Soft delete
     lead.deleted_at = datetime.utcnow()
     db.commit()
+    
+    # Invalidate caches
+    await invalidate_cache("leads")
     
     return APIResponse(
         success=True,
@@ -284,6 +296,9 @@ async def convert_lead_to_client(
     
     db.commit()
     
+    # Invalidate caches
+    await invalidate_cache("leads")
+    
     return APIResponse(
         success=True,
         message="Lead converted to client successfully",
@@ -292,6 +307,7 @@ async def convert_lead_to_client(
 
 
 @router.get("/pipeline/stats", response_model=dict)
+@cache(expire=300, namespace="leads", key_builder=cache_key_builder)
 async def get_pipeline_stats(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)

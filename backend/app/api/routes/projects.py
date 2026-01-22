@@ -1,5 +1,7 @@
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi_cache.decorator import cache
+from app.core.redis import cache_key_builder, invalidate_cache
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.client import Project, ProjectMember
@@ -20,7 +22,8 @@ from datetime import datetime
 router = APIRouter(tags=["projects"])
 
 @router.get("/projects", response_model=ProjectListResponse)
-def get_projects(
+@cache(expire=60, namespace="projects", key_builder=cache_key_builder)
+async def get_projects(
     skip: int = 0,
     limit: int = 100,
     current_user: User = Depends(get_current_active_user),
@@ -41,7 +44,7 @@ def get_projects(
     }
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
-def create_project(
+async def create_project(
     project_in: ProjectCreate,
     current_user: User = Depends(RoleChecker(["admin", "manager"])),
     db: Session = Depends(get_db)
@@ -56,10 +59,16 @@ def create_project(
     db.add(project)
     db.commit()
     db.refresh(project)
+    
+    # Invalidate caches
+    await invalidate_cache("projects")
+    await invalidate_cache("reports")
+    
     return project
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
-def get_project(
+@cache(expire=60, namespace="projects", key_builder=cache_key_builder)
+async def get_project(
     project_id: UUID,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -76,7 +85,7 @@ def get_project(
     return project
 
 @router.put("/projects/{project_id}", response_model=ProjectResponse)
-def update_project(
+async def update_project(
     project_id: UUID,
     project_in: ProjectUpdate,
     current_user: User = Depends(RoleChecker(["admin", "manager"])),
@@ -99,10 +108,15 @@ def update_project(
     db.add(project)
     db.commit()
     db.refresh(project)
+    
+    # Invalidate caches
+    await invalidate_cache("projects")
+    await invalidate_cache("reports")
+    
     return project
 
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(
+async def delete_project(
     project_id: UUID,
     current_user: User = Depends(RoleChecker(["admin", "manager"])),
     db: Session = Depends(get_db)
@@ -120,10 +134,16 @@ def delete_project(
     project.deleted_at = datetime.utcnow()
     db.add(project)
     db.commit()
+    
+    # Invalidate caches
+    await invalidate_cache("projects")
+    await invalidate_cache("reports")
+    
     return None
 
 @router.get("/projects/{project_id}/members", response_model=List[ProjectMemberResponse])
-def list_project_members(
+@cache(expire=60, namespace="projects", key_builder=cache_key_builder)
+async def list_project_members(
     project_id: UUID,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -149,7 +169,7 @@ def list_project_members(
 
 
 @router.post("/projects/{project_id}/members", response_model=ProjectMemberResponse)
-def add_project_member(
+async def add_project_member(
     project_id: UUID,
     member_data: ProjectMemberCreate,
     current_user: User = Depends(RoleChecker(["admin", "manager"])),
@@ -204,11 +224,14 @@ def add_project_member(
     db.commit()
     db.refresh(new_member)
     
+    # Invalidate projects cache
+    await invalidate_cache("projects")
+    
     return new_member
 
 
 @router.put("/projects/{project_id}/members/{user_id}", response_model=ProjectMemberResponse)
-def update_project_member(
+async def update_project_member(
     project_id: UUID,
     user_id: UUID,
     member_data: ProjectMemberUpdate,
@@ -234,11 +257,14 @@ def update_project_member(
     db.commit()
     db.refresh(member)
     
+    # Invalidate projects cache
+    await invalidate_cache("projects")
+    
     return member
 
 
 @router.delete("/projects/{project_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_project_member(
+async def remove_project_member(
     project_id: UUID,
     user_id: UUID,
     current_user: User = Depends(RoleChecker(["admin", "manager"])),
@@ -261,5 +287,8 @@ def remove_project_member(
         
     db.delete(member)
     db.commit()
+    
+    # Invalidate projects cache
+    await invalidate_cache("projects")
     
     return None

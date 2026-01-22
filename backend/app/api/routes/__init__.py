@@ -10,6 +10,7 @@ from app.api.routes.tickets import router as tickets_router
 from app.api.routes.invoices import router as invoices_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.users import router as users_router
+from app.api.routes.monitoring import router as monitoring_router
 
 __all__ = [
     "auth_router",
@@ -21,4 +22,5 @@ __all__ = [
     "invoices_router",
     "reports_router",
     "users_router",
+    "monitoring_router",
 ]

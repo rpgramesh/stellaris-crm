@@ -15,19 +15,33 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
+        url: "/stellaris-logo-new.png",
+        sizes: "32x32",
+        type: "image/png",
       },
       {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
+        url: "/stellaris-logo-new.png",
+        sizes: "16x16",
+        type: "image/png",
       },
       {
-        url: "/icon.svg",
-        type: "image/svg+xml",
+        url: "/stellaris-logo-new.png",
+        sizes: "48x48",
+        type: "image/png",
       },
     ],
-    apple: "/apple-icon.png",
+    apple: "/stellaris-logo-new.png",
+    shortcut: "/stellaris-logo-new.png",
+  },
+  openGraph: {
+    images: [
+      {
+        url: "/stellaris-logo-new.png",
+        width: 1200,
+        height: 630,
+        alt: "Stellaris CRM Portal",
+      },
+    ],
   },
 }
 

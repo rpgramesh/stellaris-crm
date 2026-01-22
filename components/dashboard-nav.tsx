@@ -27,7 +27,7 @@ export function DashboardNav() {
       <div className="flex h-16 items-center gap-2 border-b border-border px-6">
         <Link href="/" className="flex items-center">
           <Image
-            src="/stellaris-logo.png"
+            src="/stellaris-logo-new.png"
             alt="Stellaris IT Consulting & Resourcing"
             width={180}
             height={40}

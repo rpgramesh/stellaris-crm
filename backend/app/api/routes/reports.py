@@ -3,6 +3,8 @@ Reports and analytics API routes.
 """
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
+from fastapi_cache.decorator import cache
+from app.core.redis import cache_key_builder
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, extract
 from datetime import datetime, date, timedelta
@@ -20,6 +22,7 @@ router = APIRouter(prefix="/reports", tags=["Reports & Analytics"])
 
 
 @router.get("/dashboard")
+@cache(expire=60, key_builder=cache_key_builder)  # Cache for 1 minute
 async def get_dashboard_stats(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -219,6 +222,7 @@ async def get_sales_pipeline_report(
 
 
 @router.get("/revenue")
+@cache(expire=600, key_builder=cache_key_builder)
 async def get_revenue_report(
     start_date: Optional[date] = Query(None),
     end_date: Optional[date] = Query(None),
@@ -324,6 +328,7 @@ async def get_revenue_report(
 
 
 @router.get("/team-performance")
+@cache(expire=300, key_builder=cache_key_builder)
 async def get_team_performance_report(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -399,6 +404,7 @@ async def get_team_performance_report(
 
 
 @router.get("/project-profitability")
+@cache(expire=300, key_builder=cache_key_builder)
 async def get_project_profitability_report(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -460,6 +466,7 @@ async def get_project_profitability_report(
 
 
 @router.get("/ticket-analytics")
+@cache(expire=300, key_builder=cache_key_builder)
 async def get_ticket_analytics(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)

@@ -241,8 +241,16 @@ export class ApiClient {
     return this.request(`/users${query ? `?${query}` : ""}`, { method: "GET" })
   }
 
+  async getRoles() {
+    return this.request("/roles", { method: "GET" })
+  }
+
   async inviteUser(data: any) {
     return this.request("/users/invite", { method: "POST", body: JSON.stringify(data) })
+  }
+
+  async updateUser(userId: string, data: any) {
+    return this.request(`/users/${userId}`, { method: "PATCH", body: JSON.stringify(data) })
   }
 
   async deleteUser(userId: string) {
@@ -291,6 +299,33 @@ export class ApiClient {
 
   async sendInvoice(id: string | number) {
     return this.request(`/invoices/${id}/send`, { method: "POST" })
+  }
+
+  async downloadInvoicePDF(id: string | number) {
+    const token = this.token
+    const headers: HeadersInit = {}
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${API_BASE_URL}/invoices/${id}/pdf`, {
+        method: "GET",
+        headers
+    })
+
+    if (!response.ok) {
+        throw new Error("Failed to download PDF")
+    }
+
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `invoice_${id}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
   }
 
   async deleteInvoice(id: string | number) {

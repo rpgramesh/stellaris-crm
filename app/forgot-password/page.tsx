@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -44,11 +45,15 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-              <BarChart3 className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-semibold">CRM Portal</span>
+          <Link href="/" className="flex items-center justify-center">
+            <Image
+              src="/stellaris-logo-new.png"
+              alt="Stellaris IT Consulting & Resourcing"
+              width={220}
+              height={50}
+              className="h-12 w-auto"
+              priority
+            />
           </Link>
         </div>
 

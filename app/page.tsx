@@ -13,7 +13,7 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               <Link href="/" className="flex items-center">
                 <Image
-                  src="/stellaris-logo.png"
+                  src="/stellaris-logo-new.png"
                   alt="Stellaris IT Consulting & Resourcing"
                   width={220}
                   height={50}
@@ -191,7 +191,7 @@ export default function HomePage() {
             <div className="space-y-4">
               <Link href="/" className="inline-flex items-center">
                 <Image
-                  src="/stellaris-logo.png"
+                  src="/stellaris-logo-new.png"
                   alt="Stellaris IT Consulting & Resourcing"
                   width={220}
                   height={50}

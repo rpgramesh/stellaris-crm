@@ -4,15 +4,31 @@ API dependencies for authentication and authorization.
 from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from jose import JWTError
+from fastapi_cache.decorator import cache
 from app.core.database import get_db
+from app.core.redis import cache_key_builder
 from app.core.security import decode_token
 from app.models.user import User
 from app.schemas.user import UserResponse
+import uuid
 
 # HTTP Bearer token security
 security = HTTPBearer()
+
+
+@cache(expire=300, key_builder=cache_key_builder, namespace="users")
+async def get_cached_user(user_id: str, db: Session) -> Optional[User]:
+    """
+    Fetch user from DB with caching.
+    Eager loads 'role' to avoid detached instance errors.
+    """
+    return db.query(User).options(joinedload(User.role)).filter(
+        User.id == uuid.UUID(user_id),
+        User.is_active == True,
+        User.deleted_at.is_(None)
+    ).first()
 
 
 async def get_current_user(
@@ -46,18 +62,19 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
     
-    # Fetch user from database - convert string UUID to UUID object
-    import uuid
+    # Fetch user from cache or database
     try:
-        user_uuid = uuid.UUID(user_id)
+        # Pass db as kwarg to ensure it's ignored by cache_key_builder if needed,
+        # but cache_key_builder ignores 'db' in kwargs. 
+        # Here we pass it as positional but my key_builder logic for args might catch it.
+        # Let's check cache_key_builder again. 
+        # It iterates args. Session string repr changes.
+        # So we MUST pass db as kwarg or rely on the builder ignoring it if I updated it.
+        # I didn't update builder to ignore args.
+        # So I must pass db as kwarg.
+        user = await get_cached_user(user_id, db=db)
     except ValueError:
         raise credentials_exception
-    
-    user = db.query(User).filter(
-        User.id == user_uuid,
-        User.is_active == True,
-        User.deleted_at.is_(None)
-    ).first()
     
     if user is None:
         raise credentials_exception

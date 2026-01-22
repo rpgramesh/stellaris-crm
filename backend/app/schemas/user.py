@@ -33,6 +33,14 @@ class UserInvite(UserBase):
     role_id: Optional[UUID] = None
 
 
+class UserUpdate(BaseModel):
+    """Schema for user update."""
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    role_id: Optional[UUID] = None
+    is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
+
 
 class UserLogin(BaseModel):
     """Schema for user login."""

@@ -58,7 +58,7 @@ export default function LoginPage() {
         <div className="flex justify-center mb-8">
           <Link href="/" className="flex items-center justify-center">
             <Image
-              src="/stellaris-logo.png"
+              src="/stellaris-logo-new.png"
               alt="Stellaris IT Consulting & Resourcing"
               width={220}
               height={50}

@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc
 from uuid import UUID
 from datetime import datetime
+from fastapi_cache.decorator import cache
+from app.core.redis import cache_key_builder, invalidate_cache
 from app.core.database import get_db
 from app.models.client import Client
 from app.models.user import User
@@ -39,10 +41,15 @@ async def create_client(
     db.commit()
     db.refresh(new_client)
     
+    # Invalidate clients cache
+    await invalidate_cache("clients")
+    await invalidate_cache("reports") # New client might affect reports
+    
     return ClientResponse.model_validate(new_client)
 
 
 @router.get("", response_model=ClientListResponse)
+@cache(expire=60, key_builder=cache_key_builder, namespace="clients")
 async def list_clients(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -92,6 +99,7 @@ async def list_clients(
 
 
 @router.get("/{client_id}", response_model=ClientResponse)
+@cache(expire=60, key_builder=cache_key_builder, namespace="clients")
 async def get_client(
     client_id: UUID,
     current_user: User = Depends(get_current_active_user),
@@ -174,6 +182,10 @@ async def update_client(
     db.commit()
     db.refresh(client)
     
+    # Invalidate clients cache
+    await invalidate_cache("clients")
+    await invalidate_cache("reports")
+    
     return ClientResponse.model_validate(client)
 
 
@@ -230,6 +242,10 @@ async def restore_client(
 
     db.commit()
     
+    # Invalidate clients cache
+    await invalidate_cache("clients")
+    await invalidate_cache("reports")
+    
     return APIResponse(
         success=True,
         message="Client restored successfully"
@@ -262,6 +278,10 @@ async def delete_client(
     client.deleted_at = datetime.utcnow()
     db.commit()
     
+    # Invalidate clients cache
+    await invalidate_cache("clients")
+    await invalidate_cache("reports")
+    
     return APIResponse(
         success=True,
         message="Client deleted successfully"
@@ -269,6 +289,7 @@ async def delete_client(
 
 
 @router.get("/{client_id}/projects", response_model=dict)
+@cache(expire=60, key_builder=cache_key_builder, namespace="clients")
 async def get_client_projects(
     client_id: UUID,
     current_user: User = Depends(get_current_active_user),
