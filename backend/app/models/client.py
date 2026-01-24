@@ -79,3 +79,23 @@ class Project(Base):
     client = relationship("Client", back_populates="projects")
     project_manager = relationship("User", foreign_keys=[project_manager_id])
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+    tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+
+    @property
+    def progress(self):
+        """
+        Calculate project progress based on completed tasks.
+        
+        Formula: (Completed Active Tasks / Total Active Tasks) * 100
+        Active Tasks: Tasks where deleted_at is None.
+        """
+        if not self.tasks:
+            return 0
+            
+        active_tasks = [t for t in self.tasks if t.deleted_at is None]
+        total = len(active_tasks)
+        if total == 0:
+            return 0
+            
+        completed = len([t for t in active_tasks if t.status == 'completed'])
+        return int((completed / total) * 100)

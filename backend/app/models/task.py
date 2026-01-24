@@ -32,7 +32,7 @@ class Task(Base):
     deleted_at = Column(DateTime)
     
     # Relationships
-    project = relationship("Project")
+    project = relationship("Project", back_populates="tasks")
     assigned_user = relationship("User", foreign_keys=[assigned_to])
     creator = relationship("User", foreign_keys=[created_by])
     timesheets = relationship("Timesheet", back_populates="task")

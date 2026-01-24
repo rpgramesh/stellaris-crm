@@ -48,6 +48,12 @@ export function useSupabaseRealtime<T>({
       return
     }
 
+    // Set auth token if available to ensure RLS policies are respected
+    const token = typeof window !== 'undefined' ? (localStorage.getItem("access_token") || sessionStorage.getItem("access_token")) : null
+    if (token) {
+        supabase.realtime.setAuth(token)
+    }
+
     const client = supabase
 
     const channel = client
@@ -62,6 +68,7 @@ export function useSupabaseRealtime<T>({
         },
         (payload: any) => {
           const typedPayload = payload as RealtimePayload<T>
+          console.log(`Realtime event received for ${table}:`, typedPayload.eventType)
 
           if (typedPayload.eventType === "INSERT" && (!events || events.includes("INSERT"))) {
             onInsertRef.current?.(typedPayload)
@@ -72,7 +79,17 @@ export function useSupabaseRealtime<T>({
           }
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+            console.log(`Successfully subscribed to realtime channel for ${table}`)
+        }
+        if (status === 'CHANNEL_ERROR') {
+            console.error(`Realtime channel error for ${table}:`, err)
+        }
+        if (status === 'TIMED_OUT') {
+            console.error(`Realtime channel timeout for ${table}`)
+        }
+      })
 
     return () => {
       client.removeChannel(channel)

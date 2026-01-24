@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi_cache.decorator import cache
 from app.core.redis import cache_key_builder, invalidate_cache
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.models.client import Project, ProjectMember
 from app.models.user import User
@@ -18,6 +18,9 @@ from app.schemas.client import (
 from uuid import UUID
 from app.api.dependencies import get_current_active_user, RoleChecker
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["projects"])
 
@@ -33,7 +36,9 @@ async def get_projects(
     Retrieve projects.
     """
     total = db.query(Project).filter(Project.deleted_at == None).count()
-    projects = db.query(Project).filter(Project.deleted_at == None).offset(skip).limit(limit).all()
+    projects = db.query(Project).options(joinedload(Project.tasks)).filter(Project.deleted_at == None).offset(skip).limit(limit).all()
+    
+    logger.info(f"Fetched {len(projects)} projects for user {current_user.id}")
     
     return {
         "items": projects,
@@ -64,6 +69,8 @@ async def create_project(
     await invalidate_cache("projects")
     await invalidate_cache("reports")
     
+    logger.info(f"Project {project.id} created. Initial progress: {project.progress}%")
+    
     return project
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)
@@ -76,7 +83,7 @@ async def get_project(
     """
     Get project by ID.
     """
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at == None).first()
+    project = db.query(Project).options(joinedload(Project.tasks)).filter(Project.id == project_id, Project.deleted_at == None).first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -94,7 +101,7 @@ async def update_project(
     """
     Update project.
     """
-    project = db.query(Project).filter(Project.id == project_id, Project.deleted_at == None).first()
+    project = db.query(Project).options(joinedload(Project.tasks)).filter(Project.id == project_id, Project.deleted_at == None).first()
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -113,6 +120,8 @@ async def update_project(
     await invalidate_cache("projects")
     await invalidate_cache("reports")
     
+    logger.info(f"Project {project_id} updated. New progress: {project.progress}%")
+
     return project
 
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

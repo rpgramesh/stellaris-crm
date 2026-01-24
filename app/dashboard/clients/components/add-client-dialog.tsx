@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { AsyncButton } from "@/components/ui/async-button"
 import {
   Form,
   FormControl,
@@ -27,15 +28,15 @@ import { Input } from "@/components/ui/input"
 import { Loader2 } from "lucide-react"
 
 const formSchema = z.object({
-  company_name: z.string().min(2, "Company name must be at least 2 characters"),
-  industry: z.string().optional(),
-  primary_contact_name: z.string().optional(),
-  primary_contact_email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  primary_contact_phone: z.string().optional(),
-  website: z.string().url("Invalid URL").optional().or(z.literal("")),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  country: z.string().optional(),
+  company_name: z.string().trim().min(2, "Company name must be at least 2 characters"),
+  industry: z.string().trim().optional(),
+  primary_contact_name: z.string().trim().optional(),
+  primary_contact_email: z.union([z.literal(""), z.string().trim().email("Invalid email address")]),
+  primary_contact_phone: z.string().trim().optional(),
+  website: z.union([z.literal(""), z.string().trim().url("Invalid URL")]),
+  address: z.string().trim().optional(),
+  city: z.string().trim().optional(),
+  country: z.string().trim().optional(),
 })
 
 interface AddClientDialogProps {
@@ -48,9 +49,11 @@ export function AddClientDialog({ open, onOpenChange, onSuccess }: AddClientDial
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
-
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    mode: "onChange",
+    shouldUnregister: false, 
     defaultValues: {
       company_name: "",
       industry: "",
@@ -65,6 +68,7 @@ export function AddClientDialog({ open, onOpenChange, onSuccess }: AddClientDial
   })
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    console.log("Submitting form values:", values)
     try {
       setLoading(true)
       
@@ -109,17 +113,48 @@ export function AddClientDialog({ open, onOpenChange, onSuccess }: AddClientDial
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {step === 1 ? (
-              <>
+          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            console.error("Form validation failed:", errors);
+            console.error("Current form values:", form.getValues());
+          })} className="space-y-4">
+            
+            {/* Step 1 Fields */}
+            <div className={step === 1 ? "space-y-4" : "hidden"}>
+              <FormField
+                control={form.control}
+                name="company_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Acme Inc." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="industry"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Industry</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Technology" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="company_name"
+                  name="primary_contact_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company Name *</FormLabel>
+                      <FormLabel>Contact Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Acme Inc." {...field} />
+                        <Input placeholder="John Doe" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -127,56 +162,70 @@ export function AddClientDialog({ open, onOpenChange, onSuccess }: AddClientDial
                 />
                 <FormField
                   control={form.control}
-                  name="industry"
+                  name="primary_contact_email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Industry</FormLabel>
+                      <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="Technology" {...field} />
+                        <Input placeholder="john@acme.com" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="primary_contact_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contact Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="primary_contact_email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="john@acme.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
+              </div>
+            </div>
+
+            {/* Step 2 Fields */}
+            <div className={step === 2 ? "space-y-4" : "hidden"}>
+              <FormField
+                control={form.control}
+                name="website"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Website</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://acme.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="primary_contact_phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+1 234 567 890" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="123 Main St" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="website"
+                  name="city"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Website</FormLabel>
+                      <FormLabel>City</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://acme.com" {...field} />
+                        <Input placeholder="New York" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -184,60 +233,19 @@ export function AddClientDialog({ open, onOpenChange, onSuccess }: AddClientDial
                 />
                 <FormField
                   control={form.control}
-                  name="primary_contact_phone"
+                  name="country"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>Country</FormLabel>
                       <FormControl>
-                        <Input placeholder="+1 234 567 890" {...field} />
+                        <Input placeholder="USA" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input placeholder="123 Main St" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input placeholder="New York" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Country</FormLabel>
-                        <FormControl>
-                          <Input placeholder="USA" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </>
-            )}
+              </div>
+            </div>
 
             <DialogFooter className="mt-6">
               {step === 2 && (
@@ -250,10 +258,13 @@ export function AddClientDialog({ open, onOpenChange, onSuccess }: AddClientDial
                   Next
                 </Button>
               ) : (
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <AsyncButton 
+                  type="submit" 
+                  loading={loading}
+                  loadingText="Creating Client..."
+                >
                   Create Client
-                </Button>
+                </AsyncButton>
               )}
             </DialogFooter>
           </form>

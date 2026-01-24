@@ -36,8 +36,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token")
+    const localToken = localStorage.getItem("access_token")
+    const sessionToken = sessionStorage.getItem("access_token")
+    const token = localToken || sessionToken
+
     if (token) {
+      apiClient.setToken(token, !!localToken)
       apiClient
         .getCurrentUser()
         .then((userData) => setUser(userData))

@@ -49,6 +49,8 @@ export class ApiClient {
 
     if (this.token) {
       ;(headers as Record<string, string>)["Authorization"] = `Bearer ${this.token}`
+    } else {
+      console.warn(`[ApiClient] Token is missing for request to ${endpoint}`)
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -134,6 +136,10 @@ export class ApiClient {
   async getLeads(params?: Record<string, any>) {
     const query = new URLSearchParams(params).toString()
     return this.request(`/leads${query ? `?${query}` : ""}`, { method: "GET" })
+  }
+
+  async getLead(id: string | number) {
+    return this.request(`/leads/${id}`, { method: "GET" })
   }
 
   async createLead(data: any) {

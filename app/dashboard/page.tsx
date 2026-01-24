@@ -353,7 +353,7 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="capitalize whitespace-nowrap text-xs h-6">{lead.stage?.replace("_", " ")}</Badge>
                           <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                            <Link href={`/dashboard/leads/${lead.id}`}>
+                            <Link href={`/dashboard/leads?view=${lead.id}`}>
                               <Eye className="h-4 w-4 text-muted-foreground" />
                             </Link>
                           </Button>

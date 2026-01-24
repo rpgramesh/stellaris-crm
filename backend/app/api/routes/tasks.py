@@ -52,6 +52,7 @@ async def create_task(
     
     # Invalidate caches
     await invalidate_cache("tasks")
+    await invalidate_cache("projects")
     await invalidate_cache("reports")
     
     return TaskResponse.model_validate(new_task)
@@ -156,6 +157,7 @@ async def update_task(
     
     # Invalidate caches
     await invalidate_cache("tasks")
+    await invalidate_cache("projects")
     await invalidate_cache("reports")
     
     return TaskResponse.model_validate(task)
@@ -193,6 +195,7 @@ async def delete_task(
     
     # Invalidate caches
     await invalidate_cache("tasks")
+    await invalidate_cache("projects")
     await invalidate_cache("reports")
     
     return APIResponse(success=True, message="Task deleted successfully")

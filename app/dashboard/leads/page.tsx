@@ -63,9 +63,31 @@ function LeadsContent() {
   }
 
   useEffect(() => {
-    if (searchParams && searchParams.get("new") === "true") {
-      setIsAddLeadOpen(true)
+    const handleParams = async () => {
+      if (!searchParams) return
+
+      if (searchParams.get("new") === "true") {
+        setIsAddLeadOpen(true)
+      }
+
+      const viewId = searchParams.get("view")
+      if (viewId) {
+        try {
+          const lead = await apiClient.getLead(viewId)
+          setSelectedLead(lead)
+          setIsViewLeadOpen(true)
+        } catch (error) {
+          console.error("Failed to fetch lead details:", error)
+          toast({
+            title: "Error",
+            description: "Failed to load lead details",
+            variant: "destructive",
+          })
+        }
+      }
     }
+
+    handleParams()
     fetchLeads()
   }, [searchParams])
 
@@ -319,7 +341,12 @@ function LeadsContent() {
       <ViewLeadDialog 
         lead={selectedLead} 
         open={isViewLeadOpen} 
-        onOpenChange={setIsViewLeadOpen} 
+        onOpenChange={(open) => {
+          setIsViewLeadOpen(open)
+          if (!open) {
+            router.push("/dashboard/leads", { scroll: false })
+          }
+        }} 
       />
 
       <EditLeadDialog 

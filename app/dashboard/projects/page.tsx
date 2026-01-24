@@ -67,6 +67,13 @@ export default function ProjectsPage() {
     onDelete: (payload) => setProjects(prev => prev.filter(project => project.id !== payload.old.id))
   })
 
+  // Listen for task changes to update project progress
+  useSupabaseRealtime({
+    table: "tasks",
+    onInsert: () => fetchProjects(),
+    onUpdate: () => fetchProjects(),
+    onDelete: () => fetchProjects()
+  })
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {

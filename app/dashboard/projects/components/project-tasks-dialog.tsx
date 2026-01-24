@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, CheckCircle2, Circle } from "lucide-react"
+import { AddTaskDialog } from "@/app/dashboard/tasks/components/add-task-dialog"
 import { apiClient } from "@/lib/api-client"
+import { useSupabaseRealtime } from "@/hooks/use-supabase-realtime"
 
 interface ProjectTasksDialogProps {
   open: boolean
@@ -17,6 +19,22 @@ interface ProjectTasksDialogProps {
 export function ProjectTasksDialog({ open, onOpenChange, project }: ProjectTasksDialogProps) {
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false)
+
+  // Real-time updates for tasks in this project
+  useSupabaseRealtime<any>({
+    table: "tasks",
+    filter: project?.id ? `project_id=eq.${project.id}` : undefined,
+    onInsert: (payload) => {
+        // Only add if not already in list to avoid duplicates with manual optimistic updates
+        setTasks(prev => {
+            if (prev.some(t => t.id === payload.new.id)) return prev
+            return [payload.new, ...prev]
+        })
+    },
+    onUpdate: (payload) => setTasks(prev => prev.map(task => task.id === payload.new.id ? payload.new : task)),
+    onDelete: (payload) => setTasks(prev => prev.filter(task => task.id !== payload.old.id))
+  })
 
   useEffect(() => {
     if (open && project?.id) {
@@ -52,7 +70,7 @@ export function ProjectTasksDialog({ open, onOpenChange, project }: ProjectTasks
         </DialogHeader>
         <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium">Task List</h3>
-            <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Add Task</Button>
+            <Button size="sm" onClick={() => setIsAddTaskOpen(true)}><Plus className="w-4 h-4 mr-2" /> Add Task</Button>
         </div>
         <ScrollArea className="h-100">
             {loading ? <div className="p-4 text-center">Loading...</div> : (
@@ -74,6 +92,18 @@ export function ProjectTasksDialog({ open, onOpenChange, project }: ProjectTasks
             )}
         </ScrollArea>
       </DialogContent>
+      {isAddTaskOpen && (
+        <AddTaskDialog 
+          open={isAddTaskOpen} 
+          onOpenChange={setIsAddTaskOpen}
+          onSuccess={(newTask) => {
+            setTasks(prev => [newTask, ...prev])
+            loadTasks()
+          }}
+          // We can optionally pass the project ID to pre-select it in the dialog
+          defaultProjectId={project.id} 
+        />
+      )}
     </Dialog>
   )
 }

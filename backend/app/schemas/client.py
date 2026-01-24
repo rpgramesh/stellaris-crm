@@ -110,6 +110,7 @@ class ProjectResponse(ProjectBase):
     client_id: UUID
     status: str
     actual_cost: Decimal
+    progress: int = 0
     project_manager_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime

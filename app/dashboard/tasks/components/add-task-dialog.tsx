@@ -33,9 +33,10 @@ interface AddTaskDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: (task: any) => void
+  defaultProjectId?: string
 }
 
-export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogProps) {
+export function AddTaskDialog({ open, onOpenChange, onSuccess, defaultProjectId }: AddTaskDialogProps) {
   const [loading, setLoading] = useState(false)
   const [projects, setProjects] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
@@ -46,7 +47,7 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
     defaultValues: {
       title: "",
       description: "",
-      project_id: "",
+      project_id: defaultProjectId || "",
       assignee_id: "",
       status: "todo",
       priority: "medium",
@@ -60,6 +61,12 @@ export function AddTaskDialog({ open, onOpenChange, onSuccess }: AddTaskDialogPr
       loadUsers()
     }
   }, [open])
+  
+  useEffect(() => {
+    if (defaultProjectId) {
+      form.setValue('project_id', defaultProjectId)
+    }
+  }, [defaultProjectId, form])
 
   const loadProjects = async () => {
     try {
